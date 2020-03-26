@@ -1,0 +1,14 @@
+allow:
+  modules:
+    - gopkg.in/yaml.v2
+    - github.com/go-xmlfmt/xmlfmt
+    - github.com/phayes/checkstyle
+    - github.com/mitchellh/go-homedir
+  domains:
+    - golang.org
+
+replacements:
+  - modules: 
+      - github.com/uudashr/go-module
+    replacement: golang.org/x/mod
+    reason: "`mod` is the official go.mod parser library."
