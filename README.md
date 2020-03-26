@@ -1,6 +1,6 @@
 # gomodguard
 
-Allow list linter for direct Go module dependencies. This is useful for large organizations where they want to standardize on the modules used and be able to recommend alternative modules.
+Allow list linter for direct Go module dependencies. This is useful for organizations where they want to standardize on the modules used and be able to recommend alternative modules.
 
 ## Description
 
