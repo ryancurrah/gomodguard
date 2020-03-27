@@ -20,19 +20,19 @@ Logging statements are reported to `stderr`.
 
 ```yaml
 allow:
-  modules:
+  modules:                                                  # List of allowed modules
     - gopkg.in/yaml.v2
     - github.com/go-xmlfmt/xmlfmt
     - github.com/phayes/checkstyle
     - github.com/mitchellh/go-homedir
-  domains:
+  domains:                                                  # List of allowed module domains
     - golang.org
 
 replacements:
-  - modules: 
+  - modules:                                                # List of modules that should be replaced
       - github.com/uudashr/go-module
-    replacement: golang.org/x/mod
-    reason: "`mod` is the official go.mod parser library."
+    replacement: golang.org/x/mod                           # Module that should be used instead
+    reason: "`mod` is the official go.mod parser library."  # Reason why the module should be used
 ```
 
 ## Example
