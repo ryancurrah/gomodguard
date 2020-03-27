@@ -59,6 +59,20 @@ Resulting checkstyle file
 </checkstyle>
 ```
 
+## Install
+
+```
+go get -u github.com/ryancurrah/gomodguard/cmd/gomodguard
+```
+
+## Develop
+
+```
+git clone https://github.com/ryancurrah/gomodguard.git && cd gomodguard
+
+go build -o gomodguard cmd/gomodguard/main.go
+```
+
 ## License
 
 **MIT**
