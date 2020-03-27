@@ -6,7 +6,7 @@ Allow list linter for direct Go module dependencies. This is useful for organiza
 
 ## Description
 
-Allowed modules are defined in a `.gomodguard.yaml` or `~/.gomodguard.yaml` YAML file. Modules can be allowed/permitted by module or domain name.
+Allowed modules are defined in a `.gomodguard.yaml` or `~/.gomodguard.yaml` file. Modules can be allowed/permitted by module or domain name.
 
 Any modules or domains not listed in the configuration are blocked.
 
