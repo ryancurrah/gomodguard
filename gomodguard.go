@@ -53,7 +53,7 @@ func (r Replacements) Get(pkg string) *Replacement {
 	return nil
 }
 
-// Allow packages and domains.
+// Allow is a list of modules and module domains that are allowed to be used.
 type Allow struct {
 	Modules []string `yaml:"modules"`
 	Domains []string `yaml:"domains"`
@@ -87,16 +87,22 @@ type Processor struct {
 	result         []Result
 }
 
-// NewProcessorWithConfig will create a Processor to lint blocked packages.
-func NewProcessorWithConfig(config Configuration, logger *log.Logger) *Processor {
+// NewProcessor will create a Processor to lint blocked packages.
+func NewProcessor(config Configuration, logger *log.Logger) (*Processor, error) {
 	moddata, err := ioutil.ReadFile(goModFile)
 	if err != nil {
-		logger.Fatalf("error: %v", err)
+		errMsg := fmt.Sprintf("unable to read go.mod file: %s", err)
+		logger.Printf(errMsg)
+
+		return nil, fmt.Errorf(errMsg)
 	}
 
 	mfile, err := modfile.Parse(goModFile, moddata, nil)
 	if err != nil {
-		logger.Fatalf("error: %v", err)
+		errMsg := fmt.Sprintf("unable to parse go.mod file: %s", err)
+		logger.Printf(errMsg)
+
+		return nil, fmt.Errorf(errMsg)
 	}
 
 	logger.Printf("info: allowed modules, %+v", config.Allow.Modules)
@@ -111,7 +117,7 @@ func NewProcessorWithConfig(config Configuration, logger *log.Logger) *Processor
 
 	p.setBlockedModules()
 
-	return p
+	return p, nil
 }
 
 // ProcessFiles takes a string slice with file names (full paths) and lints them.
@@ -125,7 +131,11 @@ func (p *Processor) ProcessFiles(filenames []string) []Result {
 	for _, filename := range filenames {
 		data, err := ioutil.ReadFile(filename)
 		if err != nil {
-			p.logger.Fatalf("error: %v", err)
+			p.result = append(p.result, Result{
+				FileName:   filename,
+				LineNumber: 0,
+				Reason:     fmt.Sprintf("unable to read file, file cannot be linted (%s)", err.Error()),
+			})
 		}
 
 		p.process(filename, data)
@@ -165,7 +175,7 @@ func (p *Processor) process(filename string, data []byte) {
 	}
 }
 
-// Add an error for the file and line number for the current token.Pos with the given reason.
+// addError adds an error for the file and line number for the current token.Pos with the given reason.
 func (p *Processor) addError(fileset *token.FileSet, pos token.Pos, reason string) {
 	position := fileset.Position(pos)
 
@@ -177,6 +187,8 @@ func (p *Processor) addError(fileset *token.FileSet, pos token.Pos, reason strin
 	})
 }
 
+// setBlockedModules determines which modules are blocked by reading
+// the go.mod file and comparing the require modules to the allowed modules.
 func (p *Processor) setBlockedModules() {
 	blockedModules := make([]string, 0, len(p.modfile.Require))
 	require := p.modfile.Require
@@ -198,10 +210,12 @@ func (p *Processor) setBlockedModules() {
 	p.blockedModules = blockedModules
 }
 
+// isAllowedModuleDomain returns true if the given modules domain is
+// in the allowed module domains list.
 func (p *Processor) isAllowedModuleDomain(module string) bool {
 	domains := p.config.Allow.Domains
-	for n := range domains {
-		if strings.HasPrefix(strings.ToLower(module), strings.ToLower(domains[n])) {
+	for i := range domains {
+		if strings.HasPrefix(strings.ToLower(module), strings.ToLower(domains[i])) {
 			return true
 		}
 	}
@@ -209,10 +223,12 @@ func (p *Processor) isAllowedModuleDomain(module string) bool {
 	return false
 }
 
+// isAllowedModule returns true if the given module name is in the
+// allowed modules list
 func (p *Processor) isAllowedModule(module string) bool {
-	packages := p.config.Allow.Modules
-	for n := range packages {
-		if strings.EqualFold(module, packages[n]) {
+	modules := p.config.Allow.Modules
+	for i := range modules {
+		if strings.EqualFold(module, modules[i]) {
 			return true
 		}
 	}
@@ -220,6 +236,8 @@ func (p *Processor) isAllowedModule(module string) bool {
 	return false
 }
 
+// isBlockedPackage returns true if the imported package is in
+// the blocked modules list.
 func (p *Processor) isBlockedPackage(pkg string) bool {
 	blockedModules := p.blockedModules
 	for i := range blockedModules {

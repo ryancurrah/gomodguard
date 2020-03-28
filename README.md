@@ -12,7 +12,7 @@ The linter looks for blocked modules in `go.mod` and searches for imported packa
 
 Replacement modules can be suggested in the configuration.
 
-Results are reported to `stdout` and `gomodguard-checkstyle.xml` which will allow the results to be imported into CI tools that read checkstyle format.
+Results are reported to `stdout` and `gomodguard-checkstyle.xml` (If specified) which will allow the results to be imported into CI tools that read checkstyle format.
 
 Logging statements are reported to `stderr`.
 
@@ -35,10 +35,32 @@ replacements:
     reason: "`mod` is the official go.mod parser library."
 ```
 
+## Usage
+
+```
+╰─ ./gomodguard -h
+Usage: gomodguard <file> [files...]
+Also supports package syntax but will use it in relative path, i.e. ./pkg/...
+Flags:
+  -f string
+        Report results to the specified file. A report type must also be specified
+  -file string
+
+  -h    Show this help text
+  -help
+
+  -n    Don't lint test files
+  -no-test
+
+  -r string
+        Report results to one of the following formats: checkstyle. A report file destination must also be specified
+  -report string
+```
+
 ## Example
 
 ```
-╰─ ./gomodguard ./...
+╰─ ./gomodguard -r checkstyle -f gomodguard-checkstyle.xml ./...
 
 info: allowed modules, [gopkg.in/yaml.v2 github.com/go-xmlfmt/xmlfmt github.com/phayes/checkstyle github.com/mitchellh/go-homedir]
 info: allowed module domains, [golang.org]

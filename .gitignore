@@ -16,4 +16,4 @@
 
 /gomodguard
 
-gomodguard-checkstyle.xml
+*.xml

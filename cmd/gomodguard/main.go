@@ -17,10 +17,9 @@ import (
 )
 
 var (
-	configFile     = ".gomodguard.yaml"
-	checkstyleFile = "gomodguard-checkstyle.xml"
-	logger         = log.New(os.Stderr, "", 0)
-	lintErrorRC    = 2
+	configFile  = ".gomodguard.yaml"
+	logger      = log.New(os.Stderr, "", 0)
+	lintErrorRC = 2
 )
 
 func main() {
@@ -28,53 +27,50 @@ func main() {
 		args       []string
 		help       bool
 		noTest     bool
+		report     string
+		reportFile string
 		cwd, _     = os.Getwd()
 		files      = []string{}
 		finalFiles = []string{}
-		config     = gomodguard.Configuration{}
 	)
-
-	home, err := homedir.Dir()
-	if err != nil {
-		logger.Fatalf("error: unable to find home directory, %s", err)
-	}
-
-	cfgFile := ""
-	homeDirCfgFile := filepath.Join(home, configFile)
-
-	switch {
-	case fileExists(configFile):
-		cfgFile = configFile
-	case fileExists(homeDirCfgFile):
-		cfgFile = homeDirCfgFile
-	default:
-		logger.Fatalf("error: could not find config file in %s, %s", configFile, homeDirCfgFile)
-	}
-
-	data, err := ioutil.ReadFile(cfgFile)
-	if err != nil {
-		logger.Fatalf("error: %v", err)
-	}
-
-	err = yaml.Unmarshal(data, &config)
-	if err != nil {
-		logger.Fatalf("error: %v", err)
-	}
 
 	flag.BoolVar(&help, "h", false, "Show this help text")
 	flag.BoolVar(&help, "help", false, "")
 	flag.BoolVar(&noTest, "n", false, "Don't lint test files")
 	flag.BoolVar(&noTest, "no-test", false, "")
+	flag.StringVar(&report, "r", "", "Report results to one of the following formats: checkstyle. A report file destination must also be specified")
+	flag.StringVar(&report, "report", "", "")
+	flag.StringVar(&reportFile, "f", "", "Report results to the specified file. A report type must also be specified")
+	flag.StringVar(&reportFile, "file", "", "")
 	flag.Parse()
+
+	report = strings.TrimSpace(strings.ToLower(report))
 
 	if help {
 		showHelp()
 		return
 	}
 
+	if report != "" && report != "checkstyle" {
+		logger.Fatalf("error: invalid report type '%s'", report)
+	}
+
+	if report != "" && reportFile == "" {
+		logger.Fatalf("error: a report file must be specified when a report is enabled")
+	}
+
+	if report == "" && reportFile != "" {
+		logger.Fatalf("error: a report type must be specified when a report file is enabled")
+	}
+
 	args = flag.Args()
 	if len(args) == 0 {
 		args = []string{"./..."}
+	}
+
+	config, err := getConfig()
+	if err != nil {
+		logger.Fatalf("error: %s", err)
 	}
 
 	for _, f := range args {
@@ -108,10 +104,19 @@ func main() {
 		finalFiles = append(finalFiles, f)
 	}
 
-	processor := gomodguard.NewProcessorWithConfig(config, logger)
+	processor, err := gomodguard.NewProcessor(*config, logger)
+	if err != nil {
+		logger.Fatalf("error: %s", err)
+	}
+
 	results := processor.ProcessFiles(finalFiles)
 
-	writeCheckstyle(results)
+	if report == "checkstyle" {
+		err := writeCheckstyle(reportFile, results)
+		if err != nil {
+			logger.Fatalf("error: %s", err)
+		}
+	}
 
 	for _, r := range results {
 		fmt.Println(r.String())
@@ -126,7 +131,7 @@ func expandGoWildcard(root string) []string {
 	foundFiles := []string{}
 
 	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		// Only append go files
+		// Only append go files.
 		if !strings.HasSuffix(info.Name(), ".go") {
 			return nil
 		}
@@ -147,7 +152,7 @@ Flags:`
 	flag.PrintDefaults()
 }
 
-func writeCheckstyle(results []gomodguard.Result) {
+func writeCheckstyle(checkstyleFile string, results []gomodguard.Result) error {
 	check := checkstyle.New()
 
 	for i := range results {
@@ -157,8 +162,10 @@ func writeCheckstyle(results []gomodguard.Result) {
 
 	err := ioutil.WriteFile(checkstyleFile, []byte(xmlfmt.FormatXML(check.String(), "", "  ")), 0600)
 	if err != nil {
-		logger.Fatalf("error: %s", err)
+		return err
 	}
+
+	return nil
 }
 
 func fileExists(filename string) bool {
@@ -168,4 +175,37 @@ func fileExists(filename string) bool {
 	}
 
 	return !info.IsDir()
+}
+
+func getConfig() (*gomodguard.Configuration, error) {
+	config := gomodguard.Configuration{}
+
+	home, err := homedir.Dir()
+	if err != nil {
+		return nil, fmt.Errorf("unable to find home directory, %s", err)
+	}
+
+	cfgFile := ""
+	homeDirCfgFile := filepath.Join(home, configFile)
+
+	switch {
+	case fileExists(configFile):
+		cfgFile = configFile
+	case fileExists(homeDirCfgFile):
+		cfgFile = homeDirCfgFile
+	default:
+		return nil, fmt.Errorf("could not find config file in %s, %s", configFile, homeDirCfgFile)
+	}
+
+	data, err := ioutil.ReadFile(cfgFile)
+	if err != nil {
+		return nil, fmt.Errorf("could not read config file: %s", err)
+	}
+
+	err = yaml.Unmarshal(data, &config)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse config file: %s", err)
+	}
+
+	return &config, nil
 }
