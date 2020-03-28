@@ -1,10 +1,12 @@
 # gomodguard
 
+<img src="https://storage.googleapis.com/gopherizeme.appspot.com/gophers/9afcc208898c763be95f046eb2f6080146607209.png" width="30%">
+
 Allow list linter for direct Go module dependencies. This is useful for organizations where they want to standardize on the modules used and be able to recommend alternative modules.
 
 ## Description
 
-Allowed modules are defined in a `.gomodguard.yaml` or `~/.gomodguard.yaml` YAML file. Modules can be allowed/permitted by module or domain name.
+Allowed modules are defined in a `.gomodguard.yaml` or `~/.gomodguard.yaml` file. Modules can be allowed/permitted by module or domain name.
 
 Any modules or domains not listed in the configuration are blocked.
 
@@ -20,19 +22,19 @@ Logging statements are reported to `stderr`.
 
 ```yaml
 allow:
-  modules:
+  modules:                                                  # List of allowed modules
     - gopkg.in/yaml.v2
     - github.com/go-xmlfmt/xmlfmt
     - github.com/phayes/checkstyle
     - github.com/mitchellh/go-homedir
-  domains:
+  domains:                                                  # List of allowed module domains
     - golang.org
 
 replacements:
-  - modules: 
+  - modules:                                                # List of modules that should be replaced
       - github.com/uudashr/go-module
-    replacement: golang.org/x/mod
-    reason: "`mod` is the official go.mod parser library."
+    replacement: golang.org/x/mod                           # Module that should be used instead
+    reason: "`mod` is the official go.mod parser library."  # Reason why the module should be used
 ```
 
 ## Usage
