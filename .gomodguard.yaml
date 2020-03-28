@@ -10,6 +10,7 @@ allowed:
 blocked:
   modules:                                                      # List of blocked modules
     - github.com/uudashr/go-module:                             # Blocked module
-        recommendations:                                        # Recommended modules that should be used instead
+        recommendations:                                        # Recommended modules that should be used instead (Optional)
           - golang.org/x/mod                           
-        reason: "`mod` is the official go.mod parser library."  # Reason why the recommended module should be used
+        reason: "`mod` is the official go.mod parser library."  # Reason why the recommended module should be used (Optional)
+
