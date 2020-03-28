@@ -2,39 +2,44 @@
 
 <img src="https://storage.googleapis.com/gopherizeme.appspot.com/gophers/9afcc208898c763be95f046eb2f6080146607209.png" width="30%">
 
-Allow list linter for direct Go module dependencies. This is useful for organizations where they want to standardize on the modules used and be able to recommend alternative modules.
+Allow and block list linter for direct Go module dependencies. This is useful for organizations where they want to standardize on the modules used and be able to recommend alternative modules.
 
 ## Description
 
-Allowed modules are defined in a `.gomodguard.yaml` or `~/.gomodguard.yaml` file. Modules can be allowed/permitted by module or domain name.
+Allowed and blocked modules are defined in a `.gomodguard.yaml` or `~/.gomodguard.yaml` file. 
 
-Any modules or domains not listed in the configuration are blocked.
+Modules can be allowed by module or domain name. When allowed modules are specified any modules not in the allowed configuration are blocked.
 
-The linter looks for blocked modules in `go.mod` and searches for imported packages where the packages module is blocked. Indirect modules are not considered.
+If no allowed modules or domains are specified then all modules are allowed except for blocked ones.
 
-Replacement modules can be suggested in the configuration.
+The linter looks for blocked modules in `go.mod` and searches for imported packages where the imported packages module is blocked. Indirect modules are not considered.
 
-Results are reported to `stdout` and `gomodguard-checkstyle.xml` (If specified) which will allow the results to be imported into CI tools that read checkstyle format.
+Alternative modules can be optionally recommended in the blocked modules configuration.
 
-Logging statements are reported to `stderr`.
+Results are printed to `stdout`.
+
+Logging statements are printed to `stderr`.
+
+Results can be exported to different report formats. Which can be imported into CI tools. See the help section for more information.
 
 ## Configuration
 
 ```yaml
-allow:
-  modules:                                                  # List of allowed modules
+allowed:
+  modules:                                                      # List of allowed modules
     - gopkg.in/yaml.v2
     - github.com/go-xmlfmt/xmlfmt
     - github.com/phayes/checkstyle
     - github.com/mitchellh/go-homedir
-  domains:                                                  # List of allowed module domains
+  domains:                                                      # List of allowed module domains
     - golang.org
 
-replacements:
-  - modules:                                                # List of modules that should be replaced
-      - github.com/uudashr/go-module
-    replacement: golang.org/x/mod                           # Module that should be used instead
-    reason: "`mod` is the official go.mod parser library."  # Reason why the module should be used
+blocked:
+  modules:                                                      # List of blocked modules
+    - github.com/uudashr/go-module:                             # Blocked module
+        recommendations:                                        # Recommended modules that should be used instead
+          - golang.org/x/mod                           
+        reason: "`mod` is the official go.mod parser library."  # Reason why the recommended module should be used
 ```
 
 ## Usage
@@ -66,8 +71,10 @@ Flags:
 
 info: allowed modules, [gopkg.in/yaml.v2 github.com/go-xmlfmt/xmlfmt github.com/phayes/checkstyle github.com/mitchellh/go-homedir]
 info: allowed module domains, [golang.org]
-info: go.mod file has '1' blocked module(s), [github.com/uudashr/go-module]
-example/blocked_example.go:6: import of package `github.com/uudashr/go-module` is blocked because the module is not in the allowed modules list. `golang.org/x/mod` should be used instead. reason: `mod` is the official go.mod parser library.
+info: blocked modules, [github.com/uudashr/go-module]
+info: found `2` blocked modules in the go.mod file, [github.com/gofrs/uuid github.com/uudashr/go-module]
+blocked_example.go:6: import of package `github.com/gofrs/uuid` is blocked because the module is not in the allowed modules list.
+blocked_example.go:7: import of package `github.com/uudashr/go-module` is blocked because the module is in the blocked modules list. `golang.org/x/mod` is a recommended module. `mod` is the official go.mod parser library.
 ```
 
 Resulting checkstyle file
@@ -75,9 +82,12 @@ Resulting checkstyle file
 ```
 ╰─ cat gomodguard-checkstyle.xml
 
+<?xml version="1.0" encoding="UTF-8"?>
 <checkstyle version="1.0.0">
-  <file name="example/blocked_example.go">
-    <error line="6" column="1" severity="error" message="import" source="import of package `github.com/uudashr/go-module` is blocked because the module is not in the allowed modules list. `golang.org/x/mod` should be used instead. reason: `mod` is the official go.mod parser library.">
+  <file name="blocked_example.go">
+    <error line="6" column="1" severity="error" message="import of package `github.com/gofrs/uuid` is blocked because the module is not in the allowed modules list." source="gomodguard">
+    </error>
+    <error line="7" column="1" severity="error" message="import of package `github.com/uudashr/go-module` is blocked because the module is in the blocked modules list. `golang.org/x/mod` is a recommended module. `mod` is the official go.mod parser library." source="gomodguard">
     </error>
   </file>
 </checkstyle>

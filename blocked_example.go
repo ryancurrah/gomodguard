@@ -1,8 +1,9 @@
-package test
+package gomodguard
 
 import (
 	"io/ioutil"
 
+	"github.com/gofrs/uuid"
 	module "github.com/uudashr/go-module"
 )
 
@@ -18,4 +19,6 @@ func aBlockedImport() { // nolint: deadcode,unused
 	}
 
 	_ = mod
+
+	_ = uuid.Must(uuid.NewV4())
 }

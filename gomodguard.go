@@ -12,26 +12,91 @@ import (
 )
 
 var (
-	blockedReason = "import of package `%s` is blocked because the module is not in the allowed modules list."
-	goModFile     = "go.mod"
+	blockedReasonNotInAllowedList = "import of package `%s` is blocked because the module is not in the allowed modules list."
+	blockedReasonInBlockedList    = "import of package `%s` is blocked because the module is in the blocked modules list."
+	goModFile                     = "go.mod"
 )
 
-// Replacement is a list of blocked modules with a replacement module and reason why it should be replaced.
-type Replacement struct {
-	Modules     []string `yaml:"modules"`
-	Replacement string   `yaml:"replacement"`
-	Reason      string   `yaml:"reason"`
+// Recommendations are alternative modules to use and a reason why.
+type Recommendations struct {
+	Recommendations []string `yaml:"recommendations"`
+	Reason          string   `yaml:"reason"`
 }
 
-// String returns the replacement module and reason message.
-func (r *Replacement) String() string {
-	return fmt.Sprintf("`%s` should be used instead. reason: %s", r.Replacement, r.Reason)
+// String returns the recommended modules and reason message.
+func (r *Recommendations) String() string {
+	msg := ""
+
+	if r == nil {
+		return msg
+	}
+
+	for i := range r.Recommendations {
+		switch {
+		case len(r.Recommendations) == 1:
+			msg += fmt.Sprintf("`%s` is a recommended module.", r.Recommendations[i])
+		case (i+1) != len(r.Recommendations) && (i+1) == (len(r.Recommendations)-1):
+			msg += fmt.Sprintf("`%s` ", r.Recommendations[i])
+		case (i + 1) != len(r.Recommendations):
+			msg += fmt.Sprintf("`%s`, ", r.Recommendations[i])
+		default:
+			msg += fmt.Sprintf("and `%s` are recommended modules.", r.Recommendations[i])
+		}
+	}
+
+	if r.Reason != "" {
+		msg += fmt.Sprintf(" %s", r.Reason)
+	}
+
+	return msg
 }
 
-// HasReplacement returns true if the blocked package has a replacement module.
-func (r *Replacement) HasReplacement(pkg string) bool {
-	for i := range r.Modules {
-		if strings.HasPrefix(strings.ToLower(pkg), strings.ToLower(r.Modules[i])) {
+// HasRecommendations returns true if the blocked package has recommended modules.
+func (r *Recommendations) HasRecommendations(pkg string) bool {
+	return len(r.Recommendations) > 0
+}
+
+// BlockedModule is a list of blocked modules with a replacement module and reason why it should be replaced.
+type BlockedModule map[string]Recommendations
+
+// BlockedModules a list of replacement modules.
+type BlockedModules []BlockedModule
+
+// Get returns the modules that are blocked.
+func (b BlockedModules) Get() []string {
+	modules := make([]string, len(b))
+
+	for i := range b {
+		for module := range b[i] {
+			modules[i] = module
+			break
+		}
+	}
+
+	return modules
+}
+
+// RecommendedModules will return a list of recommended modules for the package provided. If there is no recommendation nil will be returned.
+func (b BlockedModules) RecommendedModules(pkg string) *Recommendations {
+	for i := range b {
+		for blockedModule, recommendations := range b[i] {
+			if strings.HasPrefix(strings.ToLower(pkg), strings.ToLower(blockedModule)) && recommendations.HasRecommendations(pkg) {
+				return &recommendations
+			}
+
+			break
+		}
+	}
+
+	return nil
+}
+
+// IsBlockedPackage returns true if the package name is in
+// the blocked modules list.
+func (b BlockedModules) IsBlockedPackage(pkg string) bool {
+	blockedModules := b.Get()
+	for i := range blockedModules {
+		if strings.HasPrefix(strings.ToLower(pkg), strings.ToLower(blockedModules[i])) {
 			return true
 		}
 	}
@@ -39,30 +104,60 @@ func (r *Replacement) HasReplacement(pkg string) bool {
 	return false
 }
 
-// Replacements a list of replacement modules.
-type Replacements []Replacement
-
-// Get will return a replacement for the package provided. If there is no replacement nil will be returned.
-func (r Replacements) Get(pkg string) *Replacement {
-	for i := range r {
-		if r[i].HasReplacement(pkg) {
-			return &r[i]
+// IsBlockedModule returns true if the given module name is in the
+// blocked modules list.
+func (b BlockedModules) IsBlockedModule(module string) bool {
+	blockedModules := b.Get()
+	for i := range blockedModules {
+		if strings.EqualFold(module, strings.TrimSpace(blockedModules[i])) {
+			return true
 		}
 	}
 
-	return nil
+	return false
 }
 
-// Allow is a list of modules and module domains that are allowed to be used.
-type Allow struct {
+// Allowed is a list of modules and module domains that are allowed to be used.
+type Allowed struct {
 	Modules []string `yaml:"modules"`
 	Domains []string `yaml:"domains"`
 }
 
+// IsAllowedModule returns true if the given module name is in the
+// allowed modules list
+func (a *Allowed) IsAllowedModule(module string) bool {
+	allowedModules := a.Modules
+	for i := range allowedModules {
+		if strings.EqualFold(module, strings.TrimSpace(allowedModules[i])) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// IsAllowedModuleDomain returns true if the given modules domain is
+// in the allowed module domains list.
+func (a *Allowed) IsAllowedModuleDomain(module string) bool {
+	allowedDomains := a.Domains
+	for i := range allowedDomains {
+		if strings.HasPrefix(strings.ToLower(module), strings.TrimSpace(strings.ToLower(allowedDomains[i]))) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Blocked is a list of modules and module domains that are allowed to be used.
+type Blocked struct {
+	Modules BlockedModules `yaml:"modules"`
+}
+
 // Configuration of gomodguard.
 type Configuration struct {
-	Allow        Allow        `yaml:"allow"`
-	Replacements Replacements `yaml:"replacements"`
+	Allowed Allowed `yaml:"allowed"`
+	Blocked Blocked `yaml:"blocked"`
 }
 
 // Result represents the result of one error.
@@ -80,11 +175,11 @@ func (r *Result) String() string {
 
 // Processor processes Go files.
 type Processor struct {
-	config         Configuration
-	logger         *log.Logger
-	modfile        *modfile.File
-	blockedModules []string
-	result         []Result
+	config                    Configuration
+	logger                    *log.Logger
+	modfile                   *modfile.File
+	blockedModulesFromModFile []string
+	result                    []Result
 }
 
 // NewProcessor will create a Processor to lint blocked packages.
@@ -105,8 +200,9 @@ func NewProcessor(config Configuration, logger *log.Logger) (*Processor, error) 
 		return nil, fmt.Errorf(errMsg)
 	}
 
-	logger.Printf("info: allowed modules, %+v", config.Allow.Modules)
-	logger.Printf("info: allowed module domains, %+v", config.Allow.Domains)
+	logger.Printf("info: allowed modules, %+v", config.Allowed.Modules)
+	logger.Printf("info: allowed module domains, %+v", config.Allowed.Domains)
+	logger.Printf("info: blocked modules, %+v", config.Blocked.Modules.Get())
 
 	p := &Processor{
 		config:  config,
@@ -115,18 +211,19 @@ func NewProcessor(config Configuration, logger *log.Logger) (*Processor, error) 
 		result:  []Result{},
 	}
 
-	p.setBlockedModules()
+	p.setBlockedModulesFromModFile()
 
 	return p, nil
 }
 
 // ProcessFiles takes a string slice with file names (full paths) and lints them.
 func (p *Processor) ProcessFiles(filenames []string) []Result {
-	p.logger.Printf("info: go.mod file has '%d' blocked module(s), %+v", len(p.blockedModules), p.blockedModules)
-
-	if len(p.blockedModules) == 0 {
-		return p.result
+	pluralModuleMsg := "s"
+	if len(p.blockedModulesFromModFile) == 1 {
+		pluralModuleMsg = ""
 	}
+
+	p.logger.Printf("info: found `%d` blocked module%s in the go.mod file, %+v", len(p.blockedModulesFromModFile), pluralModuleMsg, p.blockedModulesFromModFile)
 
 	for _, filename := range filenames {
 		data, err := ioutil.ReadFile(filename)
@@ -161,13 +258,19 @@ func (p *Processor) process(filename string, data []byte) {
 
 	imports := file.Imports
 	for i := range imports {
-		pkg := strings.Trim(imports[i].Path.Value, "\"")
-		if p.isBlockedPackage(pkg) {
-			reason := fmt.Sprintf(blockedReason, pkg)
-			replacement := p.config.Replacements.Get(pkg)
+		importedPkg := strings.TrimSpace(strings.Trim(imports[i].Path.Value, "\""))
+		if p.isBlockedPackageFromModFile(importedPkg) {
+			reason := ""
 
-			if replacement != nil {
-				reason += fmt.Sprintf(" %s", replacement.String())
+			if p.config.Blocked.Modules.IsBlockedPackage(importedPkg) {
+				reason = fmt.Sprintf(blockedReasonInBlockedList, importedPkg)
+			} else {
+				reason = fmt.Sprintf(blockedReasonNotInAllowedList, importedPkg)
+			}
+
+			recommendedModules := p.config.Blocked.Modules.RecommendedModules(importedPkg)
+			if recommendedModules != nil {
+				reason += fmt.Sprintf(" %s", recommendedModules.String())
 			}
 
 			p.addError(fileSet, imports[i].Pos(), reason)
@@ -189,59 +292,43 @@ func (p *Processor) addError(fileset *token.FileSet, pos token.Pos, reason strin
 
 // setBlockedModules determines which modules are blocked by reading
 // the go.mod file and comparing the require modules to the allowed modules.
-func (p *Processor) setBlockedModules() {
+func (p *Processor) setBlockedModulesFromModFile() {
 	blockedModules := make([]string, 0, len(p.modfile.Require))
-	require := p.modfile.Require
+	requiredModules := p.modfile.Require
 
-	for i := range require {
-		if !require[i].Indirect {
-			if p.isAllowedModuleDomain(require[i].Mod.Path) {
+	for i := range requiredModules {
+		if !requiredModules[i].Indirect {
+			requiredModule := strings.TrimSpace(requiredModules[i].Mod.Path)
+
+			if p.config.Allowed.IsAllowedModuleDomain(requiredModule) {
 				continue
 			}
 
-			if p.isAllowedModule(require[i].Mod.Path) {
+			if p.config.Allowed.IsAllowedModule(requiredModule) {
 				continue
 			}
 
-			blockedModules = append(blockedModules, require[i].Mod.Path)
+			if len(p.config.Allowed.Modules) == 0 &&
+				len(p.config.Allowed.Domains) == 0 &&
+				!p.config.Blocked.Modules.IsBlockedModule(requiredModule) {
+				continue
+			}
+
+			blockedModules = append(blockedModules, requiredModule)
 		}
 	}
 
-	p.blockedModules = blockedModules
-}
-
-// isAllowedModuleDomain returns true if the given modules domain is
-// in the allowed module domains list.
-func (p *Processor) isAllowedModuleDomain(module string) bool {
-	domains := p.config.Allow.Domains
-	for i := range domains {
-		if strings.HasPrefix(strings.ToLower(module), strings.ToLower(domains[i])) {
-			return true
-		}
+	if len(blockedModules) > 0 {
+		p.blockedModulesFromModFile = blockedModules
 	}
-
-	return false
 }
 
-// isAllowedModule returns true if the given module name is in the
-// allowed modules list
-func (p *Processor) isAllowedModule(module string) bool {
-	modules := p.config.Allow.Modules
-	for i := range modules {
-		if strings.EqualFold(module, modules[i]) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// isBlockedPackage returns true if the imported package is in
-// the blocked modules list.
-func (p *Processor) isBlockedPackage(pkg string) bool {
-	blockedModules := p.blockedModules
-	for i := range blockedModules {
-		if strings.HasPrefix(strings.ToLower(pkg), strings.ToLower(blockedModules[i])) {
+// isBlockedPackageFromModFile returns true if the imported packages module is in
+// the go.mod file and was blocked.
+func (p *Processor) isBlockedPackageFromModFile(pkg string) bool {
+	blockedModulesFromModFile := p.blockedModulesFromModFile
+	for i := range blockedModulesFromModFile {
+		if strings.HasPrefix(strings.ToLower(pkg), strings.ToLower(blockedModulesFromModFile[i])) {
 			return true
 		}
 	}

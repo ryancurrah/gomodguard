@@ -152,15 +152,17 @@ Flags:`
 	flag.PrintDefaults()
 }
 
-func writeCheckstyle(checkstyleFile string, results []gomodguard.Result) error {
+func writeCheckstyle(checkstyleFilePath string, results []gomodguard.Result) error {
 	check := checkstyle.New()
 
 	for i := range results {
 		file := check.EnsureFile(results[i].FileName)
-		file.AddError(checkstyle.NewError(results[i].LineNumber, 1, checkstyle.SeverityError, "import", results[i].Reason))
+		file.AddError(checkstyle.NewError(results[i].LineNumber, 1, checkstyle.SeverityError, results[i].Reason, "gomodguard"))
 	}
 
-	err := ioutil.WriteFile(checkstyleFile, []byte(xmlfmt.FormatXML(check.String(), "", "  ")), 0600)
+	checkstyleXML := fmt.Sprintf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n%s", check.String())
+
+	err := ioutil.WriteFile(checkstyleFilePath, []byte(xmlfmt.FormatXML(checkstyleXML, "", "  ")), 0644)
 	if err != nil {
 		return err
 	}
