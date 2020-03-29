@@ -154,13 +154,13 @@ func (a *Allowed) IsAllowedModuleDomain(module string) bool {
 	return false
 }
 
-// Blocked is a list of modules and module 
-// domains that are allowed to be used.
+// Blocked is a list of modules that are 
+// blocked and not to be used.
 type Blocked struct {
 	Modules BlockedModules `yaml:"modules"`
 }
 
-// Configuration of gomodguard.
+// Configuration of gomodguard allow and block lists.
 type Configuration struct {
 	Allowed Allowed `yaml:"allowed"`
 	Blocked Blocked `yaml:"blocked"`
