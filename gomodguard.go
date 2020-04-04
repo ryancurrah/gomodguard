@@ -51,13 +51,13 @@ func (r *Recommendations) String() string {
 	return msg
 }
 
-// HasRecommendations returns true if the blocked package has 
+// HasRecommendations returns true if the blocked package has
 // recommended modules.
 func (r *Recommendations) HasRecommendations(pkg string) bool {
 	return len(r.Recommendations) > 0
 }
 
-// BlockedModule is a blocked module name and 
+// BlockedModule is a blocked module name and
 // optionally a list of recommended modules
 // and a reason message.
 type BlockedModule map[string]Recommendations
@@ -79,7 +79,7 @@ func (b BlockedModules) Get() []string {
 	return modules
 }
 
-// RecommendedModules will return a list of recommended modules for the 
+// RecommendedModules will return a list of recommended modules for the
 // package provided. If there is no recommendation nil will be returned.
 func (b BlockedModules) RecommendedModules(pkg string) *Recommendations {
 	for i := range b {
@@ -121,14 +121,14 @@ func (b BlockedModules) IsBlockedModule(module string) bool {
 	return false
 }
 
-// Allowed is a list of modules and module 
+// Allowed is a list of modules and module
 // domains that are allowed to be used.
 type Allowed struct {
 	Modules []string `yaml:"modules"`
 	Domains []string `yaml:"domains"`
 }
 
-// IsAllowedModule returns true if the given module 
+// IsAllowedModule returns true if the given module
 // name is in the allowed modules list.
 func (a *Allowed) IsAllowedModule(module string) bool {
 	allowedModules := a.Modules
@@ -154,7 +154,7 @@ func (a *Allowed) IsAllowedModuleDomain(module string) bool {
 	return false
 }
 
-// Blocked is a list of modules that are 
+// Blocked is a list of modules that are
 // blocked and not to be used.
 type Blocked struct {
 	Modules BlockedModules `yaml:"modules"`
@@ -174,7 +174,7 @@ type Result struct {
 	Reason     string
 }
 
-// String returns the filename, line 
+// String returns the filename, line
 // number and reason of a Result.
 func (r *Result) String() string {
 	return fmt.Sprintf("%s:%d: %s", r.FileName, r.LineNumber, r.Reason)
@@ -223,7 +223,7 @@ func NewProcessor(config Configuration, logger *log.Logger) (*Processor, error) 
 	return p, nil
 }
 
-// ProcessFiles takes a string slice with file names (full paths) 
+// ProcessFiles takes a string slice with file names (full paths)
 // and lints them.
 func (p *Processor) ProcessFiles(filenames []string) []Result {
 	pluralModuleMsg := "s"
@@ -286,7 +286,7 @@ func (p *Processor) process(filename string, data []byte) {
 	}
 }
 
-// addError adds an error for the file and line number for the current token.Pos 
+// addError adds an error for the file and line number for the current token.Pos
 // with the given reason.
 func (p *Processor) addError(fileset *token.FileSet, pos token.Pos, reason string) {
 	position := fileset.Position(pos)
