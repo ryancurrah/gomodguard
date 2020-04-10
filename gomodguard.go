@@ -2,6 +2,7 @@ package gomodguard
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -348,21 +349,30 @@ func (p *Processor) isBlockedPackageFromModFile(pkg string) bool {
 }
 
 func loadGoModFile() ([]byte, error) {
-	cmd := exec.Command("go", "list", "-m", "-f", "{{.GoMod}}")
+	cmd := exec.Command("go", "env", "-json")
 	stdout, _ := cmd.StdoutPipe()
 	_ = cmd.Start()
 
-	goModFileLocation := ""
-
-	if stdout != nil {
-		buf := new(bytes.Buffer)
-		_, _ = buf.ReadFrom(stdout)
-		goModFileLocation = strings.TrimSpace(buf.String())
-	}
-
-	if _, err := os.Stat(goModFileLocation); os.IsNotExist(err) {
+	if stdout == nil {
 		return ioutil.ReadFile(goModFilename)
 	}
 
-	return ioutil.ReadFile(goModFileLocation)
+	buf := new(bytes.Buffer)
+	_, _ = buf.ReadFrom(stdout)
+
+	goEnv := make(map[string]string)
+	err := json.Unmarshal(buf.Bytes(), &goEnv)
+	if err != nil {
+		return ioutil.ReadFile(goModFilename)
+	}
+
+	if _, ok := goEnv["GOMOD"]; !ok {
+		return ioutil.ReadFile(goModFilename)
+	}
+
+	if _, err := os.Stat(goEnv["GOMOD"]); os.IsNotExist(err) {
+		return ioutil.ReadFile(goModFilename)
+	}
+
+	return ioutil.ReadFile(goEnv["GOMOD"])
 }
