@@ -14,7 +14,7 @@ dockerbuild:
 	docker build --build-arg GOMODGUARD_VERSION=${version} --tag ryancurrah/gomodguard:${version} .
  
 .PHONEY: run
-run-basicauth: build
+run: build
 	./gomodguard
 
 .PHONEY: dockerrun
