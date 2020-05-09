@@ -17,7 +17,6 @@ var (
 	recommendations   = Recommendations{Recommendations: []string{recommendedModule}, Reason: "test reason"}
 	blockedModules    = BlockedModules{{blockedModule: recommendations}}
 	allowed           = Allowed{Modules: []string{allowedModule}, Domains: []string{allowedDomain}}
-	blocked           = Blocked{Modules: blockedModules}
 )
 
 func TestGomodguardIsRecommended(t *testing.T) {
@@ -37,18 +36,21 @@ func TestGomodguardRecommendationsString(t *testing.T) {
 	if recommendationsMsg == "" {
 		t.Error("recommendations string message should not be empty")
 	}
+
 	if strings.Contains(recommendationsMsg, "modules") {
 		t.Errorf("recommendations string message should be singular: %s", recommendationsMsg)
 	}
 
 	multipleRecommendations := recommendations
 	multipleRecommendations.Recommendations = append(multipleRecommendations.Recommendations, "github.com/some/thing", "github.com/some/otherthing")
+
 	multipleRecommendationsMsg := multipleRecommendations.String()
 	if !strings.Contains(multipleRecommendationsMsg, "modules") {
 		t.Errorf("recommendations string message should be plural: %s", recommendationsMsg)
 	}
 
 	emptyRecommendations := Recommendations{}
+
 	recommendationsMsg = emptyRecommendations.String()
 	if recommendationsMsg != "" {
 		t.Error("recommendations string message should be empty")
@@ -62,6 +64,7 @@ func TestGomodguardHasRecommendations(t *testing.T) {
 	}
 
 	emptyRecommendations := Recommendations{}
+
 	hasRecommendations = emptyRecommendations.HasRecommendations()
 	if hasRecommendations {
 		t.Error("should not have recommendations when no recommended modules in list")
@@ -89,12 +92,14 @@ func TestGomodguardRecommendedModules(t *testing.T) {
 
 func TestGomodguardIsBlockedPackage(t *testing.T) {
 	blockedPkg := fmt.Sprintf("%s/util", blockedModule)
+
 	isBlockedPackage := blockedModules.IsBlockedPackage(blockedPkg)
 	if !isBlockedPackage {
 		t.Errorf("package %s should be blocked when the module is in the blocked list", blockedPkg)
 	}
 
 	allowedPkg := "github.com/someallowed/module"
+
 	isBlockedPackage = blockedModules.IsBlockedPackage(allowedPkg)
 	if isBlockedPackage {
 		t.Errorf("package %s should NOT be blocked when the module is NOT in the blocked list", allowedPkg)
@@ -145,12 +150,15 @@ func TestGomodguardProcessFilesWithAllowed(t *testing.T) {
 
 	// Test that setting skip files to true does NOT return test files
 	filteredFilesNoTests := GetFilteredFiles(cwd, true, []string{"./..."})
+
 	testFileFound := false
+
 	for _, finalFile := range filteredFilesNoTests {
 		if strings.HasSuffix(finalFile, "_test.go") {
 			testFileFound = true
 		}
 	}
+
 	if testFileFound {
 		t.Errorf("should NOT have returned files found that end with _test.go")
 	}
@@ -160,12 +168,15 @@ func TestGomodguardProcessFilesWithAllowed(t *testing.T) {
 	if len(filteredFiles) == 0 {
 		t.Errorf("should have found a file to lint")
 	}
+
 	testFileFound = false
+
 	for _, finalFile := range filteredFiles {
 		if strings.HasSuffix(finalFile, "_test.go") {
 			testFileFound = true
 		}
 	}
+
 	if !testFileFound {
 		t.Errorf("should have been able to find files that end with _test.go")
 	}

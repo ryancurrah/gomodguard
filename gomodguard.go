@@ -395,6 +395,7 @@ func loadGoModFile() ([]byte, error) {
 	_, _ = buf.ReadFrom(stdout)
 
 	goEnv := make(map[string]string)
+
 	err := json.Unmarshal(buf.Bytes(), &goEnv)
 	if err != nil {
 		return ioutil.ReadFile(goModFilename)
