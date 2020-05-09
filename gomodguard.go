@@ -29,6 +29,10 @@ type Recommendations struct {
 
 // IsRecommended returns true if the package provided is in the Recommendations list
 func (r *Recommendations) IsRecommended(pkg string) bool {
+	if r == nil {
+		return false
+	}
+
 	for n := range r.Recommendations {
 		if strings.TrimSpace(pkg) == strings.TrimSpace(r.Recommendations[n]) {
 			return true
@@ -69,6 +73,10 @@ func (r *Recommendations) String() string {
 // HasRecommendations returns true if the blocked package has
 // recommended modules.
 func (r *Recommendations) HasRecommendations() bool {
+	if r == nil {
+		return false
+	}
+
 	return len(r.Recommendations) > 0
 }
 
@@ -244,7 +252,7 @@ func (p *Processor) ProcessFiles(filenames []string) []Result {
 		pluralModuleMsg = ""
 	}
 
-	p.logger.Printf("info: found `%d` blocked module%s in the %s file, %+v",
+	p.logger.Printf("info: found %d blocked module%s in the %s file, %+v",
 		len(p.blockedModulesFromModFile), pluralModuleMsg, goModFilename, p.blockedModulesFromModFile)
 
 	for _, filename := range filenames {
@@ -334,6 +342,7 @@ func (p *Processor) setBlockedModulesFromModFile() {
 
 			requiredModuleIsBlocked := p.config.Blocked.Modules.IsBlockedModule(requiredModule)
 
+			// If module is not in allowed modules list and is not blocked it is allowed
 			if len(p.config.Allowed.Modules) == 0 &&
 				len(p.config.Allowed.Domains) == 0 &&
 				!requiredModuleIsBlocked {

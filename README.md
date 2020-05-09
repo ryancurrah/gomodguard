@@ -1,4 +1,5 @@
 # gomodguard
+[![codecov](https://codecov.io/gh/ryancurrah/gomodguard/branch/master/graph/badge.svg)](https://codecov.io/gh/ryancurrah/gomodguard)
 
 <img src="https://storage.googleapis.com/gopherizeme.appspot.com/gophers/9afcc208898c763be95f046eb2f6080146607209.png" width="30%">
 
