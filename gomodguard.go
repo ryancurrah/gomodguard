@@ -15,10 +15,12 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
-var (
+const (
 	blockedReasonNotInAllowedList = "import of package `%s` is blocked because the module is not in the allowed modules list."
 	blockedReasonInBlockedList    = "import of package `%s` is blocked because the module is in the blocked modules list."
 	goModFilename                 = "go.mod"
+	errReadingGoModFile           = "unable to read go mod file %s: %w"
+	errParsingGoModFile           = "unable to parsing go mod file %s: %w"
 )
 
 // Recommendations are alternative modules to use and a reason why.
@@ -27,7 +29,7 @@ type Recommendations struct {
 	Reason          string   `yaml:"reason"`
 }
 
-// IsRecommended returns true if the package provided is in the Recommendations list
+// IsRecommended returns true if the package provided is in the Recommendations list.
 func (r *Recommendations) IsRecommended(pkg string) bool {
 	if r == nil {
 		return false
@@ -216,16 +218,12 @@ type Processor struct {
 func NewProcessor(config Configuration, logger *log.Logger) (*Processor, error) {
 	goModFileBytes, err := loadGoModFile()
 	if err != nil {
-		errMsg := fmt.Sprintf("unable to read %s file: %s", goModFilename, err)
-
-		return nil, fmt.Errorf(errMsg)
+		return nil, fmt.Errorf(errReadingGoModFile, goModFilename, err)
 	}
 
 	mfile, err := modfile.Parse(goModFilename, goModFileBytes, nil)
 	if err != nil {
-		errMsg := fmt.Sprintf("unable to parse %s file: %s", goModFilename, err)
-
-		return nil, fmt.Errorf(errMsg)
+		return nil, fmt.Errorf(errParsingGoModFile, goModFilename, err)
 	}
 
 	logger.Printf("info: allowed modules, %+v", config.Allowed.Modules)
@@ -329,39 +327,41 @@ func (p *Processor) setBlockedModulesFromModFile() {
 	lintedModule := p.modfile.Module.Mod.Path
 
 	for i := range requiredModules {
-		if !requiredModules[i].Indirect {
-			requiredModule := strings.TrimSpace(requiredModules[i].Mod.Path)
-
-			if p.config.Allowed.IsAllowedModuleDomain(requiredModule) {
-				continue
-			}
-
-			if p.config.Allowed.IsAllowedModule(requiredModule) {
-				continue
-			}
-
-			requiredModuleIsBlocked := p.config.Blocked.Modules.IsBlockedModule(requiredModule)
-
-			// If module is not in allowed modules list and is not blocked it is allowed
-			if len(p.config.Allowed.Modules) == 0 &&
-				len(p.config.Allowed.Domains) == 0 &&
-				!requiredModuleIsBlocked {
-				continue
-			}
-
-			// If the go.mod file being linted is a recommended module of a blocked module
-			// and it imports that blocked module, do not set as a blocked. This means
-			// that the linted module wraps that blocked module
-			if requiredModuleIsBlocked {
-				recommendedModules := p.config.Blocked.Modules.RecommendedModules(requiredModule)
-
-				if recommendedModules.IsRecommended(lintedModule) {
-					continue
-				}
-			}
-
-			blockedModules = append(blockedModules, requiredModule)
+		if requiredModules[i].Indirect {
+			continue
 		}
+
+		requiredModule := strings.TrimSpace(requiredModules[i].Mod.Path)
+
+		if p.config.Allowed.IsAllowedModuleDomain(requiredModule) {
+			continue
+		}
+
+		if p.config.Allowed.IsAllowedModule(requiredModule) {
+			continue
+		}
+
+		requiredModuleIsBlocked := p.config.Blocked.Modules.IsBlockedModule(requiredModule)
+
+		// If module is not in allowed modules list and is not blocked it is allowed
+		if len(p.config.Allowed.Modules) == 0 &&
+			len(p.config.Allowed.Domains) == 0 &&
+			!requiredModuleIsBlocked {
+			continue
+		}
+
+		// If the go.mod file being linted is a recommended module of a blocked module
+		// and it imports that blocked module, do not set as a blocked. This means
+		// that the linted module wraps that blocked module
+		if requiredModuleIsBlocked {
+			recommendedModules := p.config.Blocked.Modules.RecommendedModules(requiredModule)
+
+			if recommendedModules.IsRecommended(lintedModule) {
+				continue
+			}
+		}
+
+		blockedModules = append(blockedModules, requiredModule)
 	}
 
 	if len(blockedModules) > 0 {

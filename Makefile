@@ -3,7 +3,7 @@ version = $(shell printf '%s' $$(cat VERSION))
 
 .PHONEY: lint
 lint:
-	golangci-lint run -v --enable-all --disable funlen,gochecknoglobals,lll ./...
+	golangci-lint run ./...
 
 .PHONEY: build
 build:

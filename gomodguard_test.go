@@ -1,4 +1,4 @@
-package gomodguard
+package gomodguard_test
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/ryancurrah/gomodguard"
 )
 
 var (
@@ -14,9 +16,9 @@ var (
 	blockedModule     = "github.com/someblocked/module"
 	allowedModule     = "github.com/someallowed/module"
 	allowedDomain     = "golang.org"
-	recommendations   = Recommendations{Recommendations: []string{recommendedModule}, Reason: "test reason"}
-	blockedModules    = BlockedModules{{blockedModule: recommendations}}
-	allowed           = Allowed{Modules: []string{allowedModule}, Domains: []string{allowedDomain}}
+	recommendations   = gomodguard.Recommendations{Recommendations: []string{recommendedModule}, Reason: "test reason"}
+	blockedModules    = gomodguard.BlockedModules{{blockedModule: recommendations}}
+	allowed           = gomodguard.Allowed{Modules: []string{allowedModule}, Domains: []string{allowedDomain}}
 )
 
 func TestGomodguardIsRecommended(t *testing.T) {
@@ -49,7 +51,7 @@ func TestGomodguardRecommendationsString(t *testing.T) {
 		t.Errorf("recommendations string message should be plural: %s", recommendationsMsg)
 	}
 
-	emptyRecommendations := Recommendations{}
+	emptyRecommendations := gomodguard.Recommendations{}
 
 	recommendationsMsg = emptyRecommendations.String()
 	if recommendationsMsg != "" {
@@ -63,7 +65,7 @@ func TestGomodguardHasRecommendations(t *testing.T) {
 		t.Error("should have recommendations when more than one recommended module in list")
 	}
 
-	emptyRecommendations := Recommendations{}
+	emptyRecommendations := gomodguard.Recommendations{}
 
 	hasRecommendations = emptyRecommendations.HasRecommendations()
 	if hasRecommendations {
@@ -149,7 +151,7 @@ func TestGomodguardProcessFilesWithAllowed(t *testing.T) {
 	}
 
 	// Test that setting skip files to true does NOT return test files
-	filteredFilesNoTests := GetFilteredFiles(cwd, true, []string{"./..."})
+	filteredFilesNoTests := gomodguard.GetFilteredFiles(cwd, true, []string{"./..."})
 
 	testFileFound := false
 
@@ -164,7 +166,7 @@ func TestGomodguardProcessFilesWithAllowed(t *testing.T) {
 	}
 
 	// Test that setting skip files to false DOES return test files
-	filteredFiles := GetFilteredFiles(cwd, false, []string{"./..."})
+	filteredFiles := gomodguard.GetFilteredFiles(cwd, false, []string{"./..."})
 	if len(filteredFiles) == 0 {
 		t.Errorf("should have found a file to lint")
 	}
@@ -181,7 +183,7 @@ func TestGomodguardProcessFilesWithAllowed(t *testing.T) {
 		t.Errorf("should have been able to find files that end with _test.go")
 	}
 
-	processor, err := NewProcessor(*config, logger)
+	processor, err := gomodguard.NewProcessor(*config, logger)
 	if err != nil {
 		t.Errorf("should have been able to init a new processor without an error")
 	}
@@ -200,14 +202,14 @@ func TestGomodguardProcessFilesAllAllowed(t *testing.T) {
 
 	config.Allowed.Modules = []string{}
 	config.Allowed.Domains = []string{}
-	config.Blocked.Modules = BlockedModules{}
+	config.Blocked.Modules = gomodguard.BlockedModules{}
 
-	filteredFiles := GetFilteredFiles(cwd, false, []string{"./..."})
+	filteredFiles := gomodguard.GetFilteredFiles(cwd, false, []string{"./..."})
 	if len(filteredFiles) == 0 {
 		t.Errorf("should have found a file to lint")
 	}
 
-	processor, err := NewProcessor(*config, logger)
+	processor, err := gomodguard.NewProcessor(*config, logger)
 	if err != nil {
 		t.Errorf("should have been able to init a new processor without an error")
 	}
@@ -226,17 +228,17 @@ func TestGomodguardProcessFilesWithBlockedModules(t *testing.T) {
 
 	config.Allowed.Modules = []string{"github.com/someallowed/module"}
 	config.Allowed.Domains = []string{}
-	config.Blocked.Modules = BlockedModules{
-		BlockedModule{"golang.org/x/mod": Recommendations{}},
-		BlockedModule{"gopkg.in/yaml.v2": Recommendations{Recommendations: []string{"github.com/something/else"}, Reason: "test reason"}},
+	config.Blocked.Modules = gomodguard.BlockedModules{
+		gomodguard.BlockedModule{"golang.org/x/mod": gomodguard.Recommendations{}},
+		gomodguard.BlockedModule{"gopkg.in/yaml.v2": gomodguard.Recommendations{Recommendations: []string{"github.com/something/else"}, Reason: "test reason"}},
 	}
 
-	filteredFiles := GetFilteredFiles(cwd, false, []string{"./..."})
+	filteredFiles := gomodguard.GetFilteredFiles(cwd, false, []string{"./..."})
 	if len(filteredFiles) == 0 {
 		t.Errorf("should have found a file to lint")
 	}
 
-	processor, err := NewProcessor(*config, logger)
+	processor, err := gomodguard.NewProcessor(*config, logger)
 	if err != nil {
 		t.Errorf("should have been able to init a new processor without an error")
 	}
@@ -247,8 +249,8 @@ func TestGomodguardProcessFilesWithBlockedModules(t *testing.T) {
 	}
 }
 
-func setup() (*Configuration, *log.Logger, string, error) {
-	config, err := GetConfig(".gomodguard.yaml")
+func setup() (*gomodguard.Configuration, *log.Logger, string, error) {
+	config, err := gomodguard.GetConfig(".gomodguard.yaml")
 	if err != nil {
 		return nil, nil, "", err
 	}
