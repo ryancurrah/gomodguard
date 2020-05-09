@@ -32,11 +32,9 @@ jobs:
 
     - name: Build
       run: go build -v .
-      fail_ci_if_error: true
 
     - name: Test
       run: go test -v .
-      fail_ci_if_error: true
 
     - name: Cover
       run: |
