@@ -1,9 +1,11 @@
 package main
 
 import (
+	"os"
+
 	"github.com/ryancurrah/gomodguard"
 )
 
 func main() {
-	gomodguard.Run()
+	os.Exit(gomodguard.Run())
 }

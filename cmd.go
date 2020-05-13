@@ -24,19 +24,19 @@ const (
 var (
 	configFile           = ".gomodguard.yaml"
 	logger               = log.New(os.Stderr, "", 0)
-	lintErrorRC          = 2
 	errFindingConfigFile = fmt.Errorf("could not find config file")
 )
 
-// Run the gomodguard linter.
-func Run() {
+// Run the gomodguard linter. Returns the exit code to use.
+func Run() int {
 	var (
-		args       []string
-		help       bool
-		noTest     bool
-		report     string
-		reportFile string
-		cwd, _     = os.Getwd()
+		args           []string
+		help           bool
+		noTest         bool
+		report         string
+		reportFile     string
+		issuesExitCode int
+		cwd, _         = os.Getwd()
 	)
 
 	flag.BoolVar(&help, "h", false, "Show this help text")
@@ -47,13 +47,15 @@ func Run() {
 	flag.StringVar(&report, "report", "", "")
 	flag.StringVar(&reportFile, "f", "", "Report results to the specified file. A report type must also be specified")
 	flag.StringVar(&reportFile, "file", "", "")
+	flag.IntVar(&issuesExitCode, "i", 2, "Exit code when issues were found")
+	flag.IntVar(&issuesExitCode, "issues-exit-code", 2, "")
 	flag.Parse()
 
 	report = strings.TrimSpace(strings.ToLower(report))
 
 	if help {
 		showHelp()
-		return
+		return 0
 	}
 
 	if report != "" && report != "checkstyle" {
@@ -99,8 +101,10 @@ func Run() {
 	}
 
 	if len(results) > 0 {
-		os.Exit(lintErrorRC)
+		return issuesExitCode
 	}
+
+	return 0
 }
 
 // GetConfig from YAML file.
@@ -180,7 +184,7 @@ func GetFilteredFiles(cwd string, skipTests bool, args []string) []string {
 
 // showHelp text for command line.
 func showHelp() {
-	helpText := `Usage: gomodguard <file> [foundFiles...]
+	helpText := `Usage: gomodguard <file> [files...]
 Also supports package syntax but will use it in relative path, i.e. ./pkg/...
 Flags:`
 	fmt.Println(helpText)
