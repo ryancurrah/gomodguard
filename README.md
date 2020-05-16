@@ -12,7 +12,7 @@ Allow and block list linter for direct Go module dependencies. This is useful fo
 
 ## Description
 
-Allowed and blocked modules are defined in a `.gomodguard.yaml` or `~/.gomodguard.yaml` file. 
+Allowed and blocked modules are defined in a `./.gomodguard.yaml` or `~/.gomodguard.yaml` file. 
 
 Modules can be allowed by module or domain name. When allowed modules are specified any modules not in the allowed configuration are blocked.
 
