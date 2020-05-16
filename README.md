@@ -1,6 +1,7 @@
 # gomodguard
 ![Codecov](https://img.shields.io/codecov/c/gh/ryancurrah/gomodguard?style=flat-square)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ryancurrah/gomodguard/Go?logo=Go&style=flat-square)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/ryancurrah/gomodguard?style=flat-square)
 
 <img src="https://storage.googleapis.com/gopherizeme.appspot.com/gophers/9afcc208898c763be95f046eb2f6080146607209.png" width="30%">
 
