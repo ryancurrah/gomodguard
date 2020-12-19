@@ -8,6 +8,6 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/phayes/checkstyle v0.0.0-20170904204023-bfd46e6a821d
 	github.com/pkg/errors v0.9.1
-	golang.org/x/mod v0.2.0
+	golang.org/x/mod v0.4.0
 	gopkg.in/yaml.v2 v2.2.8
 )
