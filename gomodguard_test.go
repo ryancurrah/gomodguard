@@ -2,7 +2,6 @@
 package gomodguard_test
 
 import (
-	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -34,8 +33,7 @@ func TestBlockedModuleIsAllowed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			tt.blockedModule.Set(tt.currentModuleName)
-			isAllowed := tt.blockedModule.IsAllowed()
+			isAllowed := tt.blockedModule.IsCurrentModuleARecommendation(tt.currentModuleName)
 			if isAllowed != tt.wantIsAllowed {
 				t.Errorf("got '%v' want '%v'", isAllowed, tt.wantIsAllowed)
 			}
@@ -76,7 +74,6 @@ func TestBlockedModuleMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			tt.blockedModule.Set(tt.currentModuleName)
 			message := tt.blockedModule.Message()
 			if !strings.EqualFold(message, tt.wantMessage) {
 				t.Errorf("got '%s' want '%s'", message, tt.wantMessage)
@@ -162,8 +159,7 @@ func TestBlockedVersionMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			tt.blockedVersion.Set(tt.lintedModuleVersion)
-			message := tt.blockedVersion.Message()
+			message := tt.blockedVersion.Message(tt.lintedModuleVersion)
 			if !strings.EqualFold(message, tt.wantMessage) {
 				t.Errorf("got '%s' want '%s'", message, tt.wantMessage)
 			}
@@ -197,10 +193,9 @@ func TestBlockedModulesGetBlockedModule(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			blockedModule := tt.blockedModules.GetBlockReason(tt.currentModuleName, tt.lintedModuleName)
-			blockedModule.Set(tt.currentModuleName)
-			if blockedModule.IsAllowed() != tt.wantIsAllowed {
-				t.Errorf("got '%+v' want '%+v'", blockedModule.IsAllowed(), tt.wantIsAllowed)
+			blockedModule := tt.blockedModules.GetBlockReason(tt.lintedModuleName)
+			if blockedModule.IsCurrentModuleARecommendation(tt.currentModuleName) != tt.wantIsAllowed {
+				t.Errorf("got '%+v' want '%+v'", blockedModule.IsCurrentModuleARecommendation(tt.currentModuleName), tt.wantIsAllowed)
 			}
 		})
 	}
@@ -292,24 +287,24 @@ func TestResultString(t *testing.T) {
 }
 
 func TestProcessorNewProcessor(t *testing.T) {
-	config, logger, _, err := setup()
+	config, _, err := setup()
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = gomodguard.NewProcessor(*config, logger)
+	_, err = gomodguard.NewProcessor(config)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestProcessorProcessFiles(t *testing.T) {
-	config, logger, cwd, err := setup()
+	config, cwd, err := setup()
 	if err != nil {
 		t.Error(err)
 	}
 
-	processor, err := gomodguard.NewProcessor(*config, logger)
+	processor, err := gomodguard.NewProcessor(config)
 	if err != nil {
 		t.Error(err)
 	}
@@ -322,48 +317,55 @@ func TestProcessorProcessFiles(t *testing.T) {
 		wantReason string
 	}{
 		{
-			"process module blocked because of recommendation",
-			gomodguard.Processor{Config: *config, Logger: logger, Modfile: processor.Modfile, Result: []gomodguard.Result{}},
-			"cmd.go:14:1 import of package `github.com/phayes/checkstyle` is blocked because the module is in the blocked modules list. `github.com/someother/module` is a recommended module. testing if module is blocked with recommendation.",
+			"module blocked because of recommendation",
+			gomodguard.Processor{Config: config, Modfile: processor.Modfile, Result: []gomodguard.Result{}},
+			"blocked_example.go:9:1 import of package `github.com/uudashr/go-module` is blocked because the module is in the blocked modules list. `golang.org/x/mod` is a recommended module. `mod` is the official go.mod parser library.",
 		},
 		{
-			"process module blocked because of version constraint",
-			gomodguard.Processor{Config: *config, Logger: logger, Modfile: processor.Modfile, Result: []gomodguard.Result{}},
-			"cmd.go:13:1 import of package `github.com/mitchellh/go-homedir` is blocked because the module is in the blocked modules list. version `v1.1.0` is blocked because it does not meet the version constraint `<= 1.1.0`. testing if blocked version constraint works.",
+			"module blocked because of version constraint",
+			gomodguard.Processor{Config: config, Modfile: processor.Modfile, Result: []gomodguard.Result{}},
+			"blocked_example.go:7:1 import of package `github.com/mitchellh/go-homedir` is blocked because the module is in the blocked modules list. version `v1.1.0` is blocked because it does not meet the version constraint `<= 1.1.0`. testing if blocked version constraint works.",
+		},
+		{
+			"module blocked because of local replace directive",
+			gomodguard.Processor{Config: config, Modfile: processor.Modfile, Result: []gomodguard.Result{}},
+			"blocked_example.go:8:1 import of package `github.com/ryancurrah/gomodguard` is blocked because the module has a local replace directive.",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			tt.processor.SetBlockedModulesFromModFile()
+			tt.processor.SetBlockedModules()
 			results := tt.processor.ProcessFiles(filteredFiles)
 			if len(results) == 0 {
 				t.Fatal("result should be greater than zero")
 			}
 
 			foundWantReason := false
+			allReasons := make([]string, 0, len(results))
 			for _, result := range results {
+				allReasons = append(allReasons, result.String())
+
 				if strings.EqualFold(result.String(), tt.wantReason) {
 					foundWantReason = true
 				}
 			}
 
 			if !foundWantReason {
-				t.Errorf("got '%+v' want '%s'", results, tt.wantReason)
+				t.Errorf("got '%+v' want '%s'", allReasons, tt.wantReason)
 			}
 		})
 	}
 }
 
-func setup() (*gomodguard.Configuration, *log.Logger, string, error) {
-	config, err := gomodguard.GetConfig(".gomodguard.yaml")
-	if err != nil {
-		return nil, nil, "", err
-	}
-
-	logger := log.New(os.Stderr, "", 0)
-
+func setup() (*gomodguard.Configuration, string, error) {
+	os.Chdir("_example")
 	cwd, _ := os.Getwd()
 
-	return config, logger, cwd, nil
+	config, err := gomodguard.GetConfig(".gomodguard.yaml")
+	if err != nil {
+		return nil, "", err
+	}
+
+	return config, cwd, nil
 }

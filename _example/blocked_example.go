@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 
 	"github.com/gofrs/uuid"
+	"github.com/mitchellh/go-homedir"
+	"github.com/ryancurrah/gomodguard"
 	module "github.com/uudashr/go-module"
 )
 
@@ -21,4 +23,9 @@ func aBlockedImport() { // nolint: deadcode,unused
 	_ = mod
 
 	_ = uuid.Must(uuid.NewV4())
+
+	var blockedModule gomodguard.BlockedModule
+	blockedModule.Set("some.com/module/name")
+
+	_, _ = homedir.Expand("~/something")
 }
