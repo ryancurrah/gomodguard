@@ -2,6 +2,7 @@
 package gomodguard_test
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -9,6 +10,33 @@ import (
 
 	"github.com/ryancurrah/gomodguard"
 )
+
+var (
+	config *gomodguard.Configuration
+	cwd    string
+)
+
+func TestMain(m *testing.M) {
+	err := os.Chdir("_example")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	cwd, err = os.Getwd()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	config, err = gomodguard.GetConfig(".gomodguard.yaml")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	os.Exit(m.Run())
+}
 
 func TestBlockedModuleIsAllowed(t *testing.T) {
 	var tests = []struct {
@@ -287,23 +315,13 @@ func TestResultString(t *testing.T) {
 }
 
 func TestProcessorNewProcessor(t *testing.T) {
-	config, _, err := setup()
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = gomodguard.NewProcessor(config)
+	_, err := gomodguard.NewProcessor(config)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestProcessorProcessFiles(t *testing.T) {
-	config, cwd, err := setup()
-	if err != nil {
-		t.Error(err)
-	}
-
 	processor, err := gomodguard.NewProcessor(config)
 	if err != nil {
 		t.Error(err)
@@ -356,16 +374,4 @@ func TestProcessorProcessFiles(t *testing.T) {
 			}
 		})
 	}
-}
-
-func setup() (*gomodguard.Configuration, string, error) {
-	os.Chdir("_example")
-	cwd, _ := os.Getwd()
-
-	config, err := gomodguard.GetConfig(".gomodguard.yaml")
-	if err != nil {
-		return nil, "", err
-	}
-
-	return config, cwd, nil
 }

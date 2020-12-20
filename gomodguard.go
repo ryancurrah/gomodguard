@@ -297,11 +297,6 @@ func NewProcessor(config *Configuration) (*Processor, error) {
 // ProcessFiles takes a string slice with file names (full paths)
 // and lints them.
 func (p *Processor) ProcessFiles(filenames []string) []Result {
-	blockedModules := make([]string, 0, len(p.blockedModulesFromModFile))
-	for blockedModuleName := range p.blockedModulesFromModFile {
-		blockedModules = append(blockedModules, blockedModuleName)
-	}
-
 	for _, filename := range filenames {
 		data, err := ioutil.ReadFile(filename)
 		if err != nil {
@@ -366,7 +361,7 @@ func (p *Processor) addError(fileset *token.FileSet, pos token.Pos, reason strin
 //
 // It works by iterating over the dependant modules specified in the require
 // directive, checking if the module domain or full name is in the allowed list.
-func (p *Processor) SetBlockedModules() {
+func (p *Processor) SetBlockedModules() { //nolint:gocognit
 	blockedModules := make(map[string][]string, len(p.Modfile.Require))
 	currentModuleName := p.Modfile.Module.Mod.Path
 	lintedModules := p.Modfile.Require
