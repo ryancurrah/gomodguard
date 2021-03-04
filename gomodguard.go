@@ -241,6 +241,7 @@ type Blocked struct {
 	Modules                BlockedModules  `yaml:"modules"`
 	Versions               BlockedVersions `yaml:"versions"`
 	LocalReplaceDirectives bool            `yaml:"local_replace_directives"`
+	Replace                bool            `yaml:"replace"`
 }
 
 // Configuration of gomodguard allow and block lists.
@@ -402,6 +403,12 @@ func (p *Processor) SetBlockedModules() { //nolint:gocognit
 
 		if blockVersionReason != nil && blockVersionReason.IsLintedModuleVersionBlocked(lintedModuleVersion) {
 			blockedModules[lintedModuleName] = append(blockedModules[lintedModuleName], fmt.Sprintf("%s %s", blockReasonInBlockedList, blockVersionReason.Message(lintedModuleVersion)))
+		}
+	}
+
+	if p.Config.Blocked.Replace {
+		for _, r := range p.Modfile.Replace {
+			p.Result = append(p.Result, Result{FileName: p.Modfile.Syntax.Name, LineNumber: r.Syntax.Start.Line, Reason: "replace directive not allowed"})
 		}
 	}
 
