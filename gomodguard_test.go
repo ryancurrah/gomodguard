@@ -294,12 +294,12 @@ func TestAllowedIsAllowedModuleDomain(t *testing.T) {
 func TestResultString(t *testing.T) {
 	var tests = []struct {
 		testName   string
-		result     gomodguard.Result
+		result     gomodguard.Issue
 		wantString string
 	}{
 		{
 			"reason lint failed",
-			gomodguard.Result{FileName: "test.go", LineNumber: 1, Reason: "Some reason."},
+			gomodguard.Issue{FileName: "test.go", LineNumber: 1, Reason: "Some reason."},
 			"test.go:1:1 Some reason.",
 		},
 	}
@@ -336,17 +336,17 @@ func TestProcessorProcessFiles(t *testing.T) {
 	}{
 		{
 			"module blocked because of recommendation",
-			gomodguard.Processor{Config: config, Modfile: processor.Modfile, Result: []gomodguard.Result{}},
+			gomodguard.Processor{Config: config, Modfile: processor.Modfile},
 			"blocked_example.go:9:1 import of package `github.com/uudashr/go-module` is blocked because the module is in the blocked modules list. `golang.org/x/mod` is a recommended module. `mod` is the official go.mod parser library.",
 		},
 		{
 			"module blocked because of version constraint",
-			gomodguard.Processor{Config: config, Modfile: processor.Modfile, Result: []gomodguard.Result{}},
+			gomodguard.Processor{Config: config, Modfile: processor.Modfile},
 			"blocked_example.go:7:1 import of package `github.com/mitchellh/go-homedir` is blocked because the module is in the blocked modules list. version `v1.1.0` is blocked because it does not meet the version constraint `<= 1.1.0`. testing if blocked version constraint works.",
 		},
 		{
 			"module blocked because of local replace directive",
-			gomodguard.Processor{Config: config, Modfile: processor.Modfile, Result: []gomodguard.Result{}},
+			gomodguard.Processor{Config: config, Modfile: processor.Modfile},
 			"blocked_example.go:8:1 import of package `github.com/ryancurrah/gomodguard` is blocked because the module has a local replace directive.",
 		},
 	}
