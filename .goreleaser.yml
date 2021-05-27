@@ -7,14 +7,13 @@ archives:
     darwin: Darwin
     linux: Linux
     windows: Windows
+    386: i386
     amd64: x86_64
 checksum:
   name_template: 'checksums.txt'
 dockers:
 - goos: linux
   goarch: amd64
-  binaries:
-  - gomodguard
   image_templates:
   - "ryancurrah/gomodguard:latest"
   - "ryancurrah/gomodguard:{{.Tag}}"
