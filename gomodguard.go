@@ -23,9 +23,12 @@ const (
 )
 
 var (
-	blockReasonNotInAllowedList         = "import of package `%s` is blocked because the module is not in the allowed modules list."
-	blockReasonInBlockedList            = "import of package `%s` is blocked because the module is in the blocked modules list."
-	blockReasonHasLocalReplaceDirective = "import of package `%s` is blocked because the module has a local replace directive."
+	blockReasonNotInAllowedList = "import of package `%s` is blocked because the module is not in the " +
+		"allowed modules list."
+	blockReasonInBlockedList = "import of package `%s` is blocked because the module is in the " +
+		"blocked modules list."
+	blockReasonHasLocalReplaceDirective = "import of package `%s` is blocked because the module has a " +
+		"local replace directive."
 )
 
 // BlockedVersion has a version constraint a reason why the the module version is blocked.
@@ -61,7 +64,8 @@ func (r *BlockedVersion) Message(lintedModuleVersion string) string {
 	msg := ""
 
 	// Add version contraint to message.
-	msg += fmt.Sprintf("version `%s` is blocked because it does not meet the version constraint `%s`.", lintedModuleVersion, r.Version)
+	msg += fmt.Sprintf("version `%s` is blocked because it does not meet the version constraint `%s`.",
+		lintedModuleVersion, r.Version)
 
 	if r.Reason == "" {
 		return msg
@@ -227,7 +231,8 @@ func (a *Allowed) IsAllowedModuleDomain(moduleName string) bool {
 	allowedDomains := a.Domains
 
 	for i := range allowedDomains {
-		if strings.HasPrefix(strings.TrimSpace(strings.ToLower(moduleName)), strings.TrimSpace(strings.ToLower(allowedDomains[i]))) {
+		if strings.HasPrefix(strings.TrimSpace(strings.ToLower(moduleName)),
+			strings.TrimSpace(strings.ToLower(allowedDomains[i]))) {
 			return true
 		}
 	}
@@ -363,7 +368,7 @@ func (p *Processor) addError(fileset *token.FileSet, pos token.Pos, reason strin
 //
 // It works by iterating over the dependant modules specified in the require
 // directive, checking if the module domain or full name is in the allowed list.
-func (p *Processor) SetBlockedModules() { //nolint:gocognit
+func (p *Processor) SetBlockedModules() { //nolint:gocognit,funlen
 	blockedModules := make(map[string][]string, len(p.Modfile.Require))
 	currentModuleName := p.Modfile.Module.Mod.Path
 	lintedModules := p.Modfile.Require
@@ -399,11 +404,13 @@ func (p *Processor) SetBlockedModules() { //nolint:gocognit
 		}
 
 		if blockModuleReason != nil && !blockModuleReason.IsCurrentModuleARecommendation(currentModuleName) {
-			blockedModules[lintedModuleName] = append(blockedModules[lintedModuleName], fmt.Sprintf("%s %s", blockReasonInBlockedList, blockModuleReason.Message()))
+			blockedModules[lintedModuleName] = append(blockedModules[lintedModuleName],
+				fmt.Sprintf("%s %s", blockReasonInBlockedList, blockModuleReason.Message()))
 		}
 
 		if blockVersionReason != nil && blockVersionReason.IsLintedModuleVersionBlocked(lintedModuleVersion) {
-			blockedModules[lintedModuleName] = append(blockedModules[lintedModuleName], fmt.Sprintf("%s %s", blockReasonInBlockedList, blockVersionReason.Message(lintedModuleVersion)))
+			blockedModules[lintedModuleName] = append(blockedModules[lintedModuleName],
+				fmt.Sprintf("%s %s", blockReasonInBlockedList, blockVersionReason.Message(lintedModuleVersion)))
 		}
 	}
 
@@ -417,7 +424,8 @@ func (p *Processor) SetBlockedModules() { //nolint:gocognit
 			replacedModuleNewVersion := strings.TrimSpace(replacedModules[i].New.Version)
 
 			if replacedModuleNewName != "" && replacedModuleNewVersion == "" {
-				blockedModules[replacedModuleOldName] = append(blockedModules[replacedModuleOldName], blockReasonHasLocalReplaceDirective)
+				blockedModules[replacedModuleOldName] = append(blockedModules[replacedModuleOldName],
+					blockReasonHasLocalReplaceDirective)
 			}
 		}
 	}

@@ -47,13 +47,21 @@ func TestBlockedModuleIsAllowed(t *testing.T) {
 	}{
 		{
 			"blocked",
-			gomodguard.BlockedModule{Recommendations: []string{"github.com/somerecommended/module"}},
+			gomodguard.BlockedModule{
+				Recommendations: []string{
+					"github.com/somerecommended/module",
+				},
+			},
 			"github.com/ryancurrah/gomodguard",
 			false,
 		},
 		{
 			"allowed",
-			gomodguard.BlockedModule{Recommendations: []string{"github.com/ryancurrah/gomodguard"}},
+			gomodguard.BlockedModule{
+				Recommendations: []string{
+					"github.com/ryancurrah/gomodguard",
+				},
+			},
 			"github.com/ryancurrah/gomodguard",
 			true,
 		},
@@ -72,7 +80,8 @@ func TestBlockedModuleIsAllowed(t *testing.T) {
 func TestBlockedModuleMessage(t *testing.T) {
 	blockedWithNoRecommendation := "Some reason."
 	blockedWithRecommendation := "`github.com/somerecommended/module` is a recommended module. Some reason."
-	blockedWithRecommendations := "`github.com/somerecommended/module`, `github.com/someotherrecommended/module` and `github.com/someotherotherrecommended/module` are recommended modules. Some reason."
+	blockedWithRecommendations := "`github.com/somerecommended/module`, `github.com/someotherrecommended/module` " +
+		"and `github.com/someotherotherrecommended/module` are recommended modules. Some reason."
 
 	var tests = []struct {
 		testName          string
@@ -82,19 +91,34 @@ func TestBlockedModuleMessage(t *testing.T) {
 	}{
 		{
 			"blocked with no recommendation",
-			gomodguard.BlockedModule{Recommendations: []string{}, Reason: "Some reason."},
+			gomodguard.BlockedModule{
+				Recommendations: []string{},
+				Reason:          "Some reason.",
+			},
 			"github.com/ryancurrah/gomodguard",
 			blockedWithNoRecommendation,
 		},
 		{
 			"blocked with recommendation",
-			gomodguard.BlockedModule{Recommendations: []string{"github.com/somerecommended/module"}, Reason: "Some reason."},
+			gomodguard.BlockedModule{
+				Recommendations: []string{
+					"github.com/somerecommended/module",
+				},
+				Reason: "Some reason.",
+			},
 			"github.com/ryancurrah/gomodguard",
 			blockedWithRecommendation,
 		},
 		{
 			"blocked with multiple recommendations",
-			gomodguard.BlockedModule{Recommendations: []string{"github.com/somerecommended/module", "github.com/someotherrecommended/module", "github.com/someotherotherrecommended/module"}, Reason: "Some reason."},
+			gomodguard.BlockedModule{
+				Recommendations: []string{
+					"github.com/somerecommended/module",
+					"github.com/someotherrecommended/module",
+					"github.com/someotherotherrecommended/module",
+				},
+				Reason: "Some reason.",
+			},
 			"github.com/ryancurrah/gomodguard",
 			blockedWithRecommendations,
 		},
@@ -123,7 +147,11 @@ func TestBlockedModuleHasRecommendations(t *testing.T) {
 		},
 		{
 			"does have recommendations",
-			gomodguard.BlockedModule{Recommendations: []string{"github.com/ryancurrah/gomodguard"}},
+			gomodguard.BlockedModule{
+				Recommendations: []string{
+					"github.com/ryancurrah/gomodguard",
+				},
+			},
 			true,
 		},
 	}
@@ -146,7 +174,15 @@ func TestBlockedModulesGet(t *testing.T) {
 	}{
 		{
 			"get all blocked module names",
-			gomodguard.BlockedModules{{"github.com/someblocked/module": gomodguard.BlockedModule{Recommendations: []string{"github.com/ryancurrah/gomodguard"}}}},
+			gomodguard.BlockedModules{
+				{
+					"github.com/someblocked/module": gomodguard.BlockedModule{
+						Recommendations: []string{
+							"github.com/ryancurrah/gomodguard",
+						},
+					},
+				},
+			},
 			[]string{"github.com/someblocked/module"},
 		},
 	}
@@ -162,8 +198,10 @@ func TestBlockedModulesGet(t *testing.T) {
 }
 
 func TestBlockedVersionMessage(t *testing.T) {
-	blockedWithVersionConstraint := "version `1.0.0` is blocked because it does not meet the version constraint `1.0.0`. Some reason."
-	blockedWithVersionConstraintNoReason := "version `1.0.0` is blocked because it does not meet the version constraint `<= 1.0.0`."
+	blockedWithVersionConstraint := "version `1.0.0` is blocked because it does not meet the version constraint " +
+		"`1.0.0`. Some reason."
+	blockedWithVersionConstraintNoReason := "version `1.0.0` is blocked because it does not meet the version " +
+		"constraint `<= 1.0.0`."
 
 	var tests = []struct {
 		testName            string
@@ -173,7 +211,10 @@ func TestBlockedVersionMessage(t *testing.T) {
 	}{
 		{
 			"blocked with version constraint",
-			gomodguard.BlockedVersion{Version: "1.0.0", Reason: "Some reason."},
+			gomodguard.BlockedVersion{
+				Version: "1.0.0",
+				Reason:  "Some reason.",
+			},
 			"1.0.0",
 			blockedWithVersionConstraint,
 		},
@@ -205,14 +246,30 @@ func TestBlockedModulesGetBlockedModule(t *testing.T) {
 	}{
 		{
 			"blocked",
-			gomodguard.BlockedModules{{"github.com/someblocked/module": gomodguard.BlockedModule{Recommendations: []string{"github.com/someother/module"}}}},
+			gomodguard.BlockedModules{
+				{
+					"github.com/someblocked/module": gomodguard.BlockedModule{
+						Recommendations: []string{
+							"github.com/someother/module",
+						},
+					},
+				},
+			},
 			"github.com/ryancurrah/gomodguard",
 			"github.com/someblocked/module",
 			false,
 		},
 		{
 			"allowed",
-			gomodguard.BlockedModules{{"github.com/someblocked/module": gomodguard.BlockedModule{Recommendations: []string{"github.com/ryancurrah/gomodguard"}}}},
+			gomodguard.BlockedModules{
+				{
+					"github.com/someblocked/module": gomodguard.BlockedModule{
+						Recommendations: []string{
+							"github.com/ryancurrah/gomodguard",
+						},
+					},
+				},
+			},
 			"github.com/ryancurrah/gomodguard",
 			"github.com/someblocked/module",
 			true,
@@ -223,7 +280,8 @@ func TestBlockedModulesGetBlockedModule(t *testing.T) {
 		t.Run(tt.testName, func(t *testing.T) {
 			blockedModule := tt.blockedModules.GetBlockReason(tt.lintedModuleName)
 			if blockedModule.IsCurrentModuleARecommendation(tt.currentModuleName) != tt.wantIsAllowed {
-				t.Errorf("got '%+v' want '%+v'", blockedModule.IsCurrentModuleARecommendation(tt.currentModuleName), tt.wantIsAllowed)
+				t.Errorf("got '%+v' want '%+v'", blockedModule.IsCurrentModuleARecommendation(tt.currentModuleName),
+					tt.wantIsAllowed)
 			}
 		})
 	}
@@ -337,17 +395,22 @@ func TestProcessorProcessFiles(t *testing.T) {
 		{
 			"module blocked because of recommendation",
 			gomodguard.Processor{Config: config, Modfile: processor.Modfile},
-			"blocked_example.go:9:1 import of package `github.com/uudashr/go-module` is blocked because the module is in the blocked modules list. `golang.org/x/mod` is a recommended module. `mod` is the official go.mod parser library.",
+			"blocked_example.go:9:1 import of package `github.com/uudashr/go-module` is blocked because the " +
+				"module is in the blocked modules list. `golang.org/x/mod` is a recommended module. `mod` " +
+				"is the official go.mod parser library.",
 		},
 		{
 			"module blocked because of version constraint",
 			gomodguard.Processor{Config: config, Modfile: processor.Modfile},
-			"blocked_example.go:7:1 import of package `github.com/mitchellh/go-homedir` is blocked because the module is in the blocked modules list. version `v1.1.0` is blocked because it does not meet the version constraint `<= 1.1.0`. testing if blocked version constraint works.",
+			"blocked_example.go:7:1 import of package `github.com/mitchellh/go-homedir` is blocked because " +
+				"the module is in the blocked modules list. version `v1.1.0` is blocked because it does not " +
+				"meet the version constraint `<= 1.1.0`. testing if blocked version constraint works.",
 		},
 		{
 			"module blocked because of local replace directive",
 			gomodguard.Processor{Config: config, Modfile: processor.Modfile},
-			"blocked_example.go:8:1 import of package `github.com/ryancurrah/gomodguard` is blocked because the module has a local replace directive.",
+			"blocked_example.go:8:1 import of package `github.com/ryancurrah/gomodguard` is blocked because " +
+				"the module has a local replace directive.",
 		},
 	}
 
