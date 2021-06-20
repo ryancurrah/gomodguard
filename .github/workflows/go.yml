@@ -2,12 +2,26 @@ name: Go
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
+
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
+
+permissions:
+  actions: none
+  checks: none
+  contents: read
+  deployments: none
+  issues: none
+  packages: none
+  pull-requests: none
+  repository-projects: none
+  security-events: none
+  statuses: none
 
 jobs:
-
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -16,30 +30,20 @@ jobs:
     - name: Set up Go 1.x
       uses: actions/setup-go@v2
       with:
-        go-version: ^1.13
+        go-version: ^1.16
       id: go
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
-    - name: Get dependencies
-      run: |
-        go get -v -t -d ./...
-        if [ -f Gopkg.toml ]; then
-            curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-            dep ensure
-        fi
-
     - name: Build
-      run: go build -v .
+      run: make build
 
     - name: Test
       run: make test
 
     - name: Cover
-      run: |
-        make install-go-tools
-        make cover
+      run: make install-go-tools cover
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
