@@ -1,11 +1,28 @@
 name: golangci-lint
+
 on:
   push:
     tags:
       - v*
     branches:
       - master
+
   pull_request:
+    branches:
+      - master
+
+permissions:
+  actions: none
+  checks: none
+  contents: read
+  deployments: none
+  issues: none
+  packages: none
+  pull-requests: none
+  repository-projects: none
+  security-events: none
+  statuses: none
+
 jobs:
   golangci:
     name: lint
