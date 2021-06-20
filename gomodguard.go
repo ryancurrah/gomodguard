@@ -61,20 +61,20 @@ func (r *BlockedVersion) IsLintedModuleVersionBlocked(lintedModuleVersion string
 
 // Message returns the reason why the module version is blocked.
 func (r *BlockedVersion) Message(lintedModuleVersion string) string {
-	msg := ""
+	var sb strings.Builder
 
 	// Add version contraint to message.
-	msg += fmt.Sprintf("version `%s` is blocked because it does not meet the version constraint `%s`.",
+	fmt.Fprintf(&sb, "version `%s` is blocked because it does not meet the version constraint `%s`.",
 		lintedModuleVersion, r.Version)
 
 	if r.Reason == "" {
-		return msg
+		return sb.String()
 	}
 
 	// Add reason to message.
-	msg += fmt.Sprintf(" %s.", strings.TrimRight(r.Reason, "."))
+	fmt.Fprintf(&sb, " %s.", strings.TrimRight(r.Reason, "."))
 
-	return msg
+	return sb.String()
 }
 
 // BlockedModule has alternative modules to use and a reason why the module is blocked.
@@ -104,34 +104,34 @@ func (r *BlockedModule) IsCurrentModuleARecommendation(currentModuleName string)
 
 // Message returns the reason why the module is blocked and a list of recommended modules if provided.
 func (r *BlockedModule) Message() string {
-	msg := ""
+	var sb strings.Builder
 
 	// Add recommendations to message
 	for i := range r.Recommendations {
 		switch {
 		case len(r.Recommendations) == 1:
-			msg += fmt.Sprintf("`%s` is a recommended module.", r.Recommendations[i])
+			fmt.Fprintf(&sb, "`%s` is a recommended module.", r.Recommendations[i])
 		case (i+1) != len(r.Recommendations) && (i+1) == (len(r.Recommendations)-1):
-			msg += fmt.Sprintf("`%s` ", r.Recommendations[i])
+			fmt.Fprintf(&sb, "`%s` ", r.Recommendations[i])
 		case (i + 1) != len(r.Recommendations):
-			msg += fmt.Sprintf("`%s`, ", r.Recommendations[i])
+			fmt.Fprintf(&sb, "`%s`, ", r.Recommendations[i])
 		default:
-			msg += fmt.Sprintf("and `%s` are recommended modules.", r.Recommendations[i])
+			fmt.Fprintf(&sb, "and `%s` are recommended modules.", r.Recommendations[i])
 		}
 	}
 
 	if r.Reason == "" {
-		return msg
+		return sb.String()
 	}
 
 	// Add reason to message
-	if msg == "" {
-		msg = fmt.Sprintf("%s.", strings.TrimRight(r.Reason, "."))
+	if sb.Len() == 0 {
+		fmt.Fprintf(&sb, "%s.", strings.TrimRight(r.Reason, "."))
 	} else {
-		msg += fmt.Sprintf(" %s.", strings.TrimRight(r.Reason, "."))
+		fmt.Fprintf(&sb, " %s.", strings.TrimRight(r.Reason, "."))
 	}
 
-	return msg
+	return sb.String()
 }
 
 // HasRecommendations returns true if the blocked package has
