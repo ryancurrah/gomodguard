@@ -10,3 +10,5 @@ require (
 	golang.org/x/mod v0.4.2
 	gopkg.in/yaml.v2 v2.4.0
 )
+
+retract v1.2.1 // Originally tagged for commit hash that was subsequently removed, and replaced by another commit hash
