@@ -3,6 +3,7 @@ package gomodguard
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -18,8 +19,8 @@ import (
 
 const (
 	goModFilename       = "go.mod"
-	errReadingGoModFile = "unable to read go mod file %s: %w"
-	errParsingGoModFile = "unable to parsing go mod file %s: %w"
+	errReadingGoModFile = "unable to read module file %s: %w"
+	errParsingGoModFile = "unable to parse module file %s: %w"
 )
 
 var (
@@ -64,7 +65,7 @@ func (r *BlockedVersion) Message(lintedModuleVersion string) string {
 	var sb strings.Builder
 
 	// Add version contraint to message.
-	fmt.Fprintf(&sb, "version `%s` is blocked because it does not meet the version constraint `%s`.",
+	_, _ = fmt.Fprintf(&sb, "version `%s` is blocked because it does not meet the version constraint `%s`.",
 		lintedModuleVersion, r.Version)
 
 	if r.Reason == "" {
@@ -72,7 +73,7 @@ func (r *BlockedVersion) Message(lintedModuleVersion string) string {
 	}
 
 	// Add reason to message.
-	fmt.Fprintf(&sb, " %s.", strings.TrimRight(r.Reason, "."))
+	_, _ = fmt.Fprintf(&sb, " %s.", strings.TrimRight(r.Reason, "."))
 
 	return sb.String()
 }
@@ -110,13 +111,13 @@ func (r *BlockedModule) Message() string {
 	for i := range r.Recommendations {
 		switch {
 		case len(r.Recommendations) == 1:
-			fmt.Fprintf(&sb, "`%s` is a recommended module.", r.Recommendations[i])
+			_, _ = fmt.Fprintf(&sb, "`%s` is a recommended module.", r.Recommendations[i])
 		case (i+1) != len(r.Recommendations) && (i+1) == (len(r.Recommendations)-1):
-			fmt.Fprintf(&sb, "`%s` ", r.Recommendations[i])
+			_, _ = fmt.Fprintf(&sb, "`%s` ", r.Recommendations[i])
 		case (i + 1) != len(r.Recommendations):
-			fmt.Fprintf(&sb, "`%s`, ", r.Recommendations[i])
+			_, _ = fmt.Fprintf(&sb, "`%s`, ", r.Recommendations[i])
 		default:
-			fmt.Fprintf(&sb, "and `%s` are recommended modules.", r.Recommendations[i])
+			_, _ = fmt.Fprintf(&sb, "and `%s` are recommended modules.", r.Recommendations[i])
 		}
 	}
 
@@ -126,9 +127,9 @@ func (r *BlockedModule) Message() string {
 
 	// Add reason to message
 	if sb.Len() == 0 {
-		fmt.Fprintf(&sb, "%s.", strings.TrimRight(r.Reason, "."))
+		_, _ = fmt.Fprintf(&sb, "%s.", strings.TrimRight(r.Reason, "."))
 	} else {
-		fmt.Fprintf(&sb, " %s.", strings.TrimRight(r.Reason, "."))
+		_, _ = fmt.Fprintf(&sb, " %s.", strings.TrimRight(r.Reason, "."))
 	}
 
 	return sb.String()
@@ -473,8 +474,12 @@ func loadGoModFile() ([]byte, error) {
 		return ioutil.ReadFile(goModFilename)
 	}
 
-	if _, err := os.Stat(goEnv["GOMOD"]); os.IsNotExist(err) {
+	if _, err = os.Stat(goEnv["GOMOD"]); os.IsNotExist(err) {
 		return ioutil.ReadFile(goModFilename)
+	}
+
+	if goEnv["GOMOD"] == "/dev/null" {
+		return nil, errors.New("current working directory must have a go.mod file")
 	}
 
 	return ioutil.ReadFile(goEnv["GOMOD"])
