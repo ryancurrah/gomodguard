@@ -32,8 +32,9 @@ var (
 	blockReasonHasLocalReplaceDirective = "import of package `%s` is blocked because the module has a " +
 		"local replace directive."
 
-	// startsWithVersion is used to test when a string begins with the version identifier of a module, after having stripped the prefix base module name
-	// ie "github.com/foo/bar/v2/baz" => "/v2/baz" probably indicates that the module is actually github.com/foo/bar/v2, not github.com/foo/bar
+	// startsWithVersion is used to test when a string begins with the version identifier of a module,
+	// after having stripped the prefix base module name. IE "github.com/foo/bar/v2/baz" => "/v2/baz"
+	// probably indicates that the module is actually github.com/foo/bar/v2, not github.com/foo/bar.
 	startsWithVersion = regexp.MustCompile(`^\/v[0-9]+`)
 )
 
