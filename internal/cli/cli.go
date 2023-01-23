@@ -1,9 +1,8 @@
-package gomodguard
+package cli
 
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -12,6 +11,8 @@ import (
 	"github.com/go-xmlfmt/xmlfmt"
 	"github.com/mitchellh/go-homedir"
 	"github.com/phayes/checkstyle"
+	"github.com/ryancurrah/gomodguard"
+	"github.com/ryancurrah/gomodguard/internal/filesearch"
 	"gopkg.in/yaml.v2"
 )
 
@@ -28,6 +29,7 @@ var (
 )
 
 // Run the gomodguard linter. Returns the exit code to use.
+//
 //nolint:funlen
 func Run() int {
 	var (
@@ -82,9 +84,9 @@ func Run() int {
 		logger.Fatalf("error: %s", err)
 	}
 
-	filteredFiles := GetFilteredFiles(cwd, noTest, args)
+	filteredFiles := filesearch.Find(cwd, noTest, args)
 
-	processor, err := NewProcessor(config)
+	processor, err := gomodguard.NewProcessor(config)
 	if err != nil {
 		logger.Fatalf("error: %s", err)
 	}
@@ -115,8 +117,8 @@ func Run() int {
 }
 
 // GetConfig from YAML file.
-func GetConfig(configFile string) (*Configuration, error) {
-	config := Configuration{}
+func GetConfig(configFile string) (*gomodguard.Configuration, error) {
+	config := gomodguard.Configuration{}
 
 	home, err := homedir.Dir()
 	if err != nil {
@@ -135,7 +137,7 @@ func GetConfig(configFile string) (*Configuration, error) {
 		return nil, fmt.Errorf("%w: %s %s", errFindingConfigFile, configFile, homeDirCfgFile)
 	}
 
-	data, err := ioutil.ReadFile(cfgFile)
+	data, err := os.ReadFile(cfgFile)
 	if err != nil {
 		return nil, fmt.Errorf(errReadingConfigFile, err)
 	}
@@ -148,47 +150,6 @@ func GetConfig(configFile string) (*Configuration, error) {
 	return &config, nil
 }
 
-// GetFilteredFiles returns files based on search string arguments and filters.
-func GetFilteredFiles(cwd string, skipTests bool, args []string) []string {
-	var (
-		foundFiles    = []string{}
-		filteredFiles = []string{}
-	)
-
-	for _, f := range args {
-		if strings.HasSuffix(f, "/...") {
-			dir, _ := filepath.Split(f)
-
-			foundFiles = append(foundFiles, expandGoWildcard(dir)...)
-
-			continue
-		}
-
-		if _, err := os.Stat(f); err == nil {
-			foundFiles = append(foundFiles, f)
-		}
-	}
-
-	// Use relative path to print shorter names, sort out test foundFiles if chosen.
-	for _, f := range foundFiles {
-		if skipTests {
-			if strings.HasSuffix(f, "_test.go") {
-				continue
-			}
-		}
-
-		if relativePath, err := filepath.Rel(cwd, f); err == nil {
-			filteredFiles = append(filteredFiles, relativePath)
-
-			continue
-		}
-
-		filteredFiles = append(filteredFiles, f)
-	}
-
-	return filteredFiles
-}
-
 // showHelp text for command line.
 func showHelp() {
 	helpText := `Usage: gomodguard <file> [files...]
@@ -199,7 +160,7 @@ Flags:`
 }
 
 // WriteCheckstyle takes the results and writes them to a checkstyle formated file.
-func WriteCheckstyle(checkstyleFilePath string, results []Issue) error {
+func WriteCheckstyle(checkstyleFilePath string, results []gomodguard.Issue) error {
 	check := checkstyle.New()
 
 	for i := range results {
@@ -210,7 +171,7 @@ func WriteCheckstyle(checkstyleFilePath string, results []Issue) error {
 
 	checkstyleXML := fmt.Sprintf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n%s", check.String())
 
-	err := ioutil.WriteFile(checkstyleFilePath, []byte(xmlfmt.FormatXML(checkstyleXML, "", "  ")), 0644) // nolint:gosec
+	err := os.WriteFile(checkstyleFilePath, []byte(xmlfmt.FormatXML(checkstyleXML, "", "  ")), 0644) //nolint:gosec
 	if err != nil {
 		return err
 	}
@@ -226,22 +187,4 @@ func fileExists(filename string) bool {
 	}
 
 	return !info.IsDir()
-}
-
-// expandGoWildcard path provided.
-func expandGoWildcard(root string) []string {
-	foundFiles := []string{}
-
-	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		// Only append go foundFiles.
-		if !strings.HasSuffix(info.Name(), ".go") {
-			return nil
-		}
-
-		foundFiles = append(foundFiles, path)
-
-		return nil
-	})
-
-	return foundFiles
 }

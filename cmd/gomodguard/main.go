@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
-	"github.com/ryancurrah/gomodguard"
+	"github.com/ryancurrah/gomodguard/internal/cli"
 )
 
 func main() {
-	os.Exit(gomodguard.Run())
+	os.Exit(cli.Run())
 }
