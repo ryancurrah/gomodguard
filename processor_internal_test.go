@@ -71,7 +71,7 @@ func Test_packageInModule(t *testing.T) { //nolint:funlen
 		wantPkgIsInMod bool
 	}{
 		{
-			name: "should return bar package path",
+			name: "package with path bar",
 			args: args{
 				pkg: "github.com/acme/foo/bar",
 				mod: "github.com/acme/foo",
@@ -79,7 +79,7 @@ func Test_packageInModule(t *testing.T) { //nolint:funlen
 			wantPkgIsInMod: true,
 		},
 		{
-			name: "should return bar/baz package path",
+			name: "package with path bar/baz",
 			args: args{
 				pkg: "github.com/acme/foo/bar/baz",
 				mod: "github.com/acme/foo",
