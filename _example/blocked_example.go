@@ -1,7 +1,7 @@
 package gomodguard
 
 import (
-	"io/ioutil"
+	"os"
 
 	"github.com/gofrs/uuid"
 	"github.com/mitchellh/go-homedir"
@@ -9,8 +9,8 @@ import (
 	module "github.com/uudashr/go-module"
 )
 
-func aBlockedImport() { // nolint: deadcode,unused
-	b, err := ioutil.ReadFile("go.mod")
+func aBlockedImport() { //nolint: deadcode,unused
+	b, err := os.ReadFile("go.mod")
 	if err != nil {
 		panic(err)
 	}
