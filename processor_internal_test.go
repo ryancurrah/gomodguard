@@ -113,13 +113,13 @@ func Test_packageInModule(t *testing.T) { //nolint:funlen
 		{
 			name: "aws v2 package should match v2 module with a package path",
 			args: args{
-				pkg: "github.com/aws/aws-sdk-go",
+				pkg: "github.com/aws/aws-sdk-go-v2/foo",
 				mod: "github.com/aws/aws-sdk-go-v2",
 			},
-			wantPkgIsInMod: false,
+			wantPkgIsInMod: true,
 		},
 		{
-			name: "package path with different major version",
+			name: "package with different major version",
 			args: args{
 				pkg: "github.com/foo/bar/v20",
 				mod: "github.com/foo/bar",
@@ -127,7 +127,7 @@ func Test_packageInModule(t *testing.T) { //nolint:funlen
 			wantPkgIsInMod: false,
 		},
 		{
-			name: "package path with no major version",
+			name: "package with no major version",
 			args: args{
 				pkg: "github.com/foo/bar",
 				mod: "github.com/foo/bar/v10",
@@ -135,7 +135,7 @@ func Test_packageInModule(t *testing.T) { //nolint:funlen
 			wantPkgIsInMod: false,
 		},
 		{
-			name: "module with different major version",
+			name: "with different major version",
 			args: args{
 				pkg: "github.com/foo/bar/v40",
 				mod: "github.com/foo/bar/v41",
@@ -143,7 +143,7 @@ func Test_packageInModule(t *testing.T) { //nolint:funlen
 			wantPkgIsInMod: false,
 		},
 		{
-			name: "same major version",
+			name: "with same major version",
 			args: args{
 				pkg: "github.com/foo/bar/v50",
 				mod: "github.com/foo/bar/v50",
