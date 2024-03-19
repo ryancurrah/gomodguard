@@ -111,12 +111,14 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 		t.Run(tt.testName, func(t *testing.T) {
 			tt.processor.SetBlockedModules()
 			results := tt.processor.ProcessFiles(filteredFiles)
+
 			if len(results) == 0 {
 				t.Fatal("result should be greater than zero")
 			}
 
 			foundWantReason := false
 			allReasons := make([]string, 0, len(results))
+
 			for _, result := range results {
 				allReasons = append(allReasons, result.String())
 
