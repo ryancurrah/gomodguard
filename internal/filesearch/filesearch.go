@@ -51,7 +51,7 @@ func Find(cwd string, skipTests bool, args []string) []string {
 func expandGoWildcard(root string) []string {
 	foundFiles := []string{}
 
-	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(root, func(path string, info os.FileInfo, _ error) error {
 		// Only append go foundFiles.
 		if !strings.HasSuffix(info.Name(), ".go") {
 			return nil
