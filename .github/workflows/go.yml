@@ -23,9 +23,9 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-    - uses: actions/setup-go@v3
+    - uses: actions/setup-go@v5
       with:
         go-version: stable
 
@@ -51,3 +51,19 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: true
+
+  golangci-lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version: stable
+
+    - name: lint
+      uses: golangci/golangci-lint-action@v4
+      with:
+        version: latest
+        skip-build-cache: true
+        skip-pkg-cache: true
