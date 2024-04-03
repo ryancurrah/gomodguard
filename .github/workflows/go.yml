@@ -1,11 +1,8 @@
 name: Go
 
 on:
-  push:
-    branches:
-      - main
-
   pull_request:
+  push:
     branches:
       - main
 
@@ -34,6 +31,11 @@ jobs:
 
     - name: Build
       run: make build
+
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
 
     - name: Test
       run: make test
