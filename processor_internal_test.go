@@ -2,6 +2,10 @@ package gomodguard
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 func TestIsModuleBlocked(t *testing.T) {
@@ -167,4 +171,217 @@ func Test_packageInModule(t *testing.T) { //nolint:funlen
 			}
 		})
 	}
+}
+
+func TestProcessorSetBlockedModulesWithAllowList(t *testing.T) {
+	config := &Configuration{
+		Allowed: Allowed{
+			Modules: []string{
+				"gopkg.in/yaml.v2",
+				"github.com/go-xmlfmt/xmlfmt",
+				"github.com/Masterminds/semver/v3",
+				"github.com/ryancurrah/gomodguard",
+			},
+			Domains: []string{
+				"golang.org",
+			},
+		},
+		Blocked: Blocked{
+			Modules: BlockedModules{
+				{
+					"github.com/uudashr/go-module": BlockedModule{
+						Recommendations: []string{"golang.org/x/mod"},
+						Reason:          "`mod` is the official go.mod parser library.",
+					},
+				},
+				{
+					"github.com/gofrs/uuid": BlockedModule{
+						Recommendations: []string{"github.com/ryancurrah/gomodguard"},
+						Reason:          "testing if module is not blocked when it is recommended.",
+					},
+				},
+			},
+			Versions: BlockedVersions{
+				{
+					"github.com/mitchellh/go-homedir": BlockedVersion{
+						Version: "<= 1.1.0",
+						Reason:  "testing if blocked version constraint works.",
+					},
+				},
+			},
+			LocalReplaceDirectives: true,
+		},
+	}
+
+	modfile := &modfile.File{
+		Module: &modfile.Module{
+			Mod: module.Version{
+				Path:    "github.com/ryancurrah/gomodguard",
+				Version: "v1.0.0",
+			},
+		},
+		Require: []*modfile.Require{
+			{
+				Mod: module.Version{
+					Path:    "gopkg.in/yaml.v2",
+					Version: "v2.4.0",
+				},
+			},
+			{
+				Mod: module.Version{
+					Path:    "github.com/uudashr/go-module",
+					Version: "v1.0.0",
+				},
+			},
+			{
+				Mod: module.Version{
+					Path:    "github.com/gofrs/uuid",
+					Version: "v1.2.3",
+				},
+			},
+			{
+				Mod: module.Version{
+					Path:    "github.com/mitchellh/go-homedir",
+					Version: "v1.0.0",
+				},
+			},
+		},
+		Replace: []*modfile.Replace{
+			{
+				Old: module.Version{
+					Path:    "github.com/gofrs/uuid",
+					Version: "v1.2.3",
+				},
+				New: module.Version{
+					Path:    "/path/to/local/package",
+					Version: "",
+				},
+			},
+		},
+	}
+
+	processor := &Processor{
+		Config:  config,
+		Modfile: modfile,
+	}
+
+	processor.SetBlockedModules()
+
+	// Assert number of blocked modules
+	assert.Len(t, processor.blockedModulesFromModFile, 3)
+
+	// Assert blocked modules
+	assert.Equal(t,
+		[]string{"import of package `%s` is blocked because the module is in the blocked modules list. " +
+			"`golang.org/x/mod` is a recommended module. `mod` is the official go.mod parser library."},
+		processor.blockedModulesFromModFile["github.com/uudashr/go-module"],
+	)
+
+	assert.Equal(t,
+		[]string{"import of package `%s` is blocked because the module has a local replace directive."},
+		processor.blockedModulesFromModFile["github.com/gofrs/uuid"],
+	)
+
+	assert.Equal(t,
+		[]string{"import of package `%s` is blocked because the module is in the blocked modules list. " +
+			"version `v1.0.0` is blocked because it does not meet the version constraint `<= 1.1.0`. testing " +
+			"if blocked version constraint works."},
+		processor.blockedModulesFromModFile["github.com/mitchellh/go-homedir"],
+	)
+}
+
+func TestProcessorSetBlockedModulesWithoutAllowList(t *testing.T) {
+	config := &Configuration{
+		Blocked: Blocked{
+			Modules: BlockedModules{
+				{
+					"gotest.tools/v3": BlockedModule{
+						Recommendations: []string{"github.com/stretchr/testify/assert"},
+						Reason:          "We have standardized on `github.com/stretchr/testify/assert`.",
+					},
+				},
+			},
+		},
+	}
+
+	modfile := &modfile.File{
+		Module: &modfile.Module{
+			Mod: module.Version{
+				Path:    "github.com/ryancurrah/gomodguard",
+				Version: "v1.0.0",
+			},
+		},
+		Require: []*modfile.Require{
+			{
+				Mod: module.Version{
+					Path:    "gotest.tools/v3",
+					Version: "v3.4.0",
+				},
+			},
+		},
+	}
+
+	processor := &Processor{
+		Config:  config,
+		Modfile: modfile,
+	}
+
+	processor.SetBlockedModules()
+
+	// Assert number of blocked modules
+	assert.Len(t, processor.blockedModulesFromModFile, 1)
+
+	// Assert blocked modules
+	assert.Equal(t,
+		[]string{"import of package `%s` is blocked because the module is in the blocked modules list. " +
+			"`github.com/stretchr/testify/assert` is a recommended module. We have standardized on `github.com/stretchr/testify/assert`."},
+		processor.blockedModulesFromModFile["gotest.tools/v3"],
+	)
+}
+
+func TestProcessorSetBlockedModulesWithInvalidVersionConstraint(t *testing.T) {
+	config := &Configuration{
+		Blocked: Blocked{
+			Versions: BlockedVersions{
+				{
+					"github.com/gin-gonic/gin": BlockedVersion{
+						Version: "== 1.0.0",
+					},
+				},
+			},
+		},
+	}
+
+	modfile := &modfile.File{
+		Module: &modfile.Module{
+			Mod: module.Version{
+				Path:    "github.com/ryancurrah/gomodguard",
+				Version: "v1.0.0",
+			},
+		},
+		Require: []*modfile.Require{
+			{
+				Mod: module.Version{
+					Path:    "github.com/gin-gonic/gin",
+					Version: "v1.0.0",
+				},
+			},
+		},
+	}
+
+	processor := &Processor{
+		Config:  config,
+		Modfile: modfile,
+	}
+
+	processor.SetBlockedModules()
+
+	// Assert number of blocked modules
+	assert.Len(t, processor.blockedModulesFromModFile, 1)
+
+	// Assert blocked modules
+	assert.Equal(t,
+		[]string{"import of package `%s` is blocked because the version constraint is invalid. improper constraint: == 1.0.0"},
+		processor.blockedModulesFromModFile["github.com/gin-gonic/gin"],
+	)
 }

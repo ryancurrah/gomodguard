@@ -1,0 +1,6 @@
+blocked:
+  modules:
+    - gotest.tools/v3:
+        recommendations:
+          - github.com/stretchr/testify/assert
+        reason: "We have standardized on `github.com/stretchr/testify/assert`."

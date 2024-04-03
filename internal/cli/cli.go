@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -25,7 +26,7 @@ const (
 var (
 	configFile           = ".gomodguard.yaml"
 	logger               = log.New(os.Stderr, "", 0)
-	errFindingConfigFile = fmt.Errorf("could not find config file")
+	errFindingConfigFile = errors.New("could not find config file")
 )
 
 // Run the gomodguard linter. Returns the exit code to use.
@@ -125,8 +126,9 @@ func GetConfig(configFile string) (*gomodguard.Configuration, error) {
 		return nil, fmt.Errorf(errFindingHomedir, err)
 	}
 
-	cfgFile := ""
 	homeDirCfgFile := filepath.Join(home, configFile)
+
+	var cfgFile string
 
 	switch {
 	case fileExists(configFile):
