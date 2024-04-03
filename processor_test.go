@@ -20,11 +20,12 @@ func TestProcessorNewProcessor(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+		return
 	}
 }
 
 func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
-	err := os.Chdir("_example")
+	err := os.Chdir("_example/allOptions")
 	if err != nil {
 		t.Error(err)
 	}
@@ -39,7 +40,7 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 			Modules: []string{
 				"gopkg.in/yaml.v2",
 				"github.com/go-xmlfmt/xmlfmt",
-				"github.com/Masterminds/semver",
+				"github.com/Masterminds/semver/v3",
 				"github.com/ryancurrah/gomodguard",
 			},
 			Domains: []string{
@@ -110,6 +111,7 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
 			tt.processor.SetBlockedModules()
+
 			results := tt.processor.ProcessFiles(filteredFiles)
 
 			if len(results) == 0 {
