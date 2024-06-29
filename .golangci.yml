@@ -30,3 +30,4 @@ linters:
     - perfsprint
     - tagliatelle
     - wrapcheck
+    - mnd
