@@ -3,7 +3,7 @@ module github.com/ryancurrah/gomodguard
 go 1.21
 
 require (
-	github.com/Masterminds/semver/v3 v3.2.1
+	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/go-xmlfmt/xmlfmt v1.1.2
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/phayes/checkstyle v0.0.0-20170904204023-bfd46e6a821d
