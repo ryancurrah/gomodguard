@@ -1,6 +1,7 @@
 module github.com/ryancurrah/gomodguard
 
 go 1.21
+toolchain go1.22.5
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.0
@@ -8,7 +9,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/phayes/checkstyle v0.0.0-20170904204023-bfd46e6a821d
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/mod v0.20.0
+	golang.org/x/mod v0.21.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
