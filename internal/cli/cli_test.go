@@ -9,7 +9,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	err := os.Chdir("../../_example")
+	err := os.Chdir("../../_example/allOptions")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
