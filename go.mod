@@ -7,7 +7,7 @@ require (
 	github.com/go-xmlfmt/xmlfmt v1.1.2
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/phayes/checkstyle v0.0.0-20170904204023-bfd46e6a821d
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	golang.org/x/mod v0.21.0
 	gopkg.in/yaml.v2 v2.4.0
 )
