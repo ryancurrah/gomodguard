@@ -1,15 +1,16 @@
 package cli
 
 import (
+	"encoding/xml"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
-	"github.com/go-xmlfmt/xmlfmt"
 	"github.com/mitchellh/go-homedir"
 	"github.com/phayes/checkstyle"
 	"github.com/ryancurrah/gomodguard"
@@ -171,9 +172,15 @@ func WriteCheckstyle(checkstyleFilePath string, results []gomodguard.Issue) erro
 			"gomodguard"))
 	}
 
-	checkstyleXML := fmt.Sprintf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n%s", check.String())
+	body, err := xml.MarshalIndent(check, "", "  ")
+	if err != nil {
+		return err
+	}
 
-	err := os.WriteFile(checkstyleFilePath, []byte(xmlfmt.FormatXML(checkstyleXML, "", "  ")), 0644) //nolint:gosec
+	header := []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+	checkstyleXML := slices.Concat([]byte{'\n'}, header, []byte{'\n'}, body)
+
+	err = os.WriteFile(checkstyleFilePath, checkstyleXML, 0644) //nolint:gosec
 	if err != nil {
 		return err
 	}
