@@ -177,7 +177,7 @@ func TestProcessorSetBlockedModulesWithAllowList(t *testing.T) {
 	config := &Configuration{
 		Allowed: Allowed{
 			Modules: []string{
-				"gopkg.in/yaml.v2",
+				"gopkg.in/yaml.v3",
 				"github.com/go-xmlfmt/xmlfmt",
 				"github.com/Masterminds/semver/v3",
 				"github.com/ryancurrah/gomodguard",
@@ -223,8 +223,8 @@ func TestProcessorSetBlockedModulesWithAllowList(t *testing.T) {
 		Require: []*modfile.Require{
 			{
 				Mod: module.Version{
-					Path:    "gopkg.in/yaml.v2",
-					Version: "v2.4.0",
+					Path:    "gopkg.in/yaml.v3",
+					Version: "v3.0.1",
 				},
 			},
 			{

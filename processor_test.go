@@ -38,7 +38,7 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 	config := &gomodguard.Configuration{
 		Allowed: gomodguard.Allowed{
 			Modules: []string{
-				"gopkg.in/yaml.v2",
+				"gopkg.in/yaml.v3",
 				"github.com/go-xmlfmt/xmlfmt",
 				"github.com/Masterminds/semver/v3",
 				"github.com/ryancurrah/gomodguard",

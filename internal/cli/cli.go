@@ -14,7 +14,7 @@ import (
 	"github.com/phayes/checkstyle"
 	"github.com/ryancurrah/gomodguard"
 	"github.com/ryancurrah/gomodguard/internal/filesearch"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 const (

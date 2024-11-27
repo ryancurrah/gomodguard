@@ -1,6 +1,6 @@
 allowed:
   modules:                                                      # List of allowed modules
-    - gopkg.in/yaml.v2
+    - gopkg.in/yaml.v3
     - github.com/go-xmlfmt/xmlfmt
     - github.com/Masterminds/semver
     - github.com/ryancurrah/gomodguard
