@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/go-xmlfmt/xmlfmt v1.1.2
+	github.com/go-xmlfmt/xmlfmt v1.1.3
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/phayes/checkstyle v0.0.0-20170904204023-bfd46e6a821d
 	github.com/stretchr/testify v1.10.0
