@@ -1,0 +1,22 @@
+allowed:
+  modules:                                                      # List of allowed modules
+    - gopkg.in/yaml.v3
+    - github.com/go-xmlfmt/xmlfmt
+    - github.com/Masterminds/semver
+    - github.com/ryancurrah/gomodguard
+  domains:                                                      # List of allowed module domains
+    - golang.org
+
+blocked:
+  modules:                                                      # List of blocked modules
+    - github.com/gofrs/uuid:
+        recommendations:
+          - github.com/ryancurrah/gomodguard
+        reason: "testing module is blocked when it is an indirect dependency."
+
+  versions:
+    - github.com/mitchellh/go-homedir:
+        version: "<= 1.1.0"
+        reason: "testing if blocked version constraint works."
+
+  local_replace_directives: true
