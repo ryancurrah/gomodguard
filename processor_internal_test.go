@@ -385,3 +385,123 @@ func TestProcessorSetBlockedModulesWithInvalidVersionConstraint(t *testing.T) {
 		processor.blockedModulesFromModFile["github.com/gin-gonic/gin"],
 	)
 }
+
+func TestProcessorSetBlockedModulesWithIndirectDependency(t *testing.T) {
+	tests := []struct {
+		name               string
+		config             *Configuration
+		modfile            *modfile.File
+		wantBlockedModules map[string][]string
+	}{
+		{
+			name: "module is specifically blocked",
+			config: &Configuration{
+				Allowed: Allowed{
+					Modules: []string{
+						"gopkg.in/yaml.v3",
+						"github.com/go-xmlfmt/xmlfmt",
+						"github.com/Masterminds/semver/v3",
+						"github.com/ryancurrah/gomodguard",
+					},
+					Domains: []string{
+						"golang.org",
+					},
+				},
+				Blocked: Blocked{
+					Modules: BlockedModules{
+						{
+							"github.com/indirect/dependency": BlockedModule{
+								Recommendations: []string{"github.com/recommended/module"},
+								Reason:          "Indirect dependencies should not be directly imported.",
+							},
+						},
+					},
+				},
+			},
+			modfile: &modfile.File{
+				Module: &modfile.Module{
+					Mod: module.Version{
+						Path:    "github.com/ryancurrah/gomodguard",
+						Version: "v1.0.0",
+					},
+				},
+				Require: []*modfile.Require{
+					{
+						Indirect: true, // Mark this dependency as indirect
+						Mod: module.Version{
+							Path:    "github.com/indirect/dependency",
+							Version: "v1.0.0",
+						},
+					},
+				},
+			},
+			wantBlockedModules: map[string][]string{
+				"github.com/indirect/dependency": {
+					"import of package `%s` is blocked because the module is in the blocked modules list. " +
+						"`github.com/recommended/module` is a recommended module. Indirect dependencies should not be directly imported.",
+				},
+			},
+		},
+		{
+			name: "module is implicitly blocked (not in allowed list)",
+			config: &Configuration{
+				Allowed: Allowed{
+					Modules: []string{
+						"gopkg.in/yaml.v3",
+						"github.com/go-xmlfmt/xmlfmt",
+						"github.com/Masterminds/semver/v3",
+						"github.com/ryancurrah/gomodguard",
+					},
+					Domains: []string{
+						"golang.org",
+					},
+				},
+				Blocked: Blocked{
+					Modules: BlockedModules{},
+				},
+			},
+			modfile: &modfile.File{
+				Module: &modfile.Module{
+					Mod: module.Version{
+						Path:    "github.com/ryancurrah/gomodguard",
+						Version: "v1.0.0",
+					},
+				},
+				Require: []*modfile.Require{
+					{
+						Indirect: true, // Mark this dependency as indirect
+						Mod: module.Version{
+							Path:    "github.com/indirect/dependency",
+							Version: "v1.0.0",
+						},
+					},
+				},
+			},
+			wantBlockedModules: map[string][]string{
+				"github.com/indirect/dependency": {
+					"import of package `%s` is blocked because the module is not in the allowed modules list.",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			processor := &Processor{
+				Config:  tt.config,
+				Modfile: tt.modfile,
+			}
+
+			processor.SetBlockedModules()
+
+			// Assert number of blocked modules
+			assert.Equal(t, len(tt.wantBlockedModules), len(processor.blockedModulesFromModFile))
+
+			// Assert blocked modules and reasons
+			for blockedModule, wantReasons := range tt.wantBlockedModules {
+				gotReasons := processor.blockedModulesFromModFile[blockedModule]
+				assert.Equal(t, wantReasons, gotReasons)
+			}
+		})
+	}
+}

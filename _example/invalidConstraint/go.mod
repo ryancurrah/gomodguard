@@ -1,4 +1,4 @@
-module github.com/ryancurrah/example/example3
+module github.com/ryancurrah/example
 
 go 1.21
 
