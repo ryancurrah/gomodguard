@@ -25,10 +25,7 @@ func TestProcessorNewProcessor(t *testing.T) {
 }
 
 func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
-	err := os.Chdir("_example/allOptions")
-	if err != nil {
-		t.Error(err)
-	}
+	t.Chdir("_example/allOptions")
 
 	cwd, err := os.Getwd()
 	if err != nil {
