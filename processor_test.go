@@ -25,9 +25,19 @@ func TestProcessorNewProcessor(t *testing.T) {
 }
 
 func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
-	t.Chdir("_example/allOptions")
+	backupWd, err := os.Getwd()
+	if err != nil {
+		t.Error(err)
+	}
 
-	cwd, err := os.Getwd()
+	defer func() { _ = os.Chdir(backupWd) }()
+
+	err = os.Chdir("_example/allOptions")
+	if err != nil {
+		t.Error(err)
+	}
+
+	wd, err := os.Getwd()
 	if err != nil {
 		t.Error(err)
 	}
@@ -76,7 +86,7 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 		t.Error(err)
 	}
 
-	filteredFiles := filesearch.Find(cwd, false, []string{"./..."})
+	filteredFiles := filesearch.Find(wd, false, []string{"./..."})
 
 	var tests = []struct {
 		testName   string
