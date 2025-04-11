@@ -111,6 +111,10 @@ func Run() int {
 		fmt.Println(r.String())
 	}
 
+	if processor.WrongGoVersion != "" {
+		fmt.Printf("wrong go version: current %s, want: %s\n", processor.WrongGoVersion, config.Go)
+	}
+
 	if len(results) > 0 {
 		return issuesExitCode
 	}

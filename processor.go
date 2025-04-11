@@ -37,6 +37,7 @@ var (
 type Configuration struct {
 	Allowed Allowed `yaml:"allowed"`
 	Blocked Blocked `yaml:"blocked"`
+	Go      string  `yaml:"go"`
 }
 
 // Processor processes Go files.
@@ -44,6 +45,7 @@ type Processor struct {
 	Config                    *Configuration
 	Modfile                   *modfile.File
 	blockedModulesFromModFile map[string][]string
+	WrongGoVersion            string
 }
 
 // NewProcessor will create a Processor to lint blocked packages.
@@ -63,6 +65,7 @@ func NewProcessor(config *Configuration) (*Processor, error) {
 		Modfile: modFile,
 	}
 
+	p.setWrongGoVersion(modFile.Go.Version)
 	p.SetBlockedModules()
 
 	return p, nil
@@ -224,6 +227,19 @@ func (p *Processor) isBlockedPackageFromModFile(packageName string) []string {
 
 			return formattedReasons
 		}
+	}
+
+	return nil
+}
+
+func (p *Processor) setWrongGoVersion(goVersion string) error {
+	ok, err := IsOkGoVersion(p.Config.Go, goVersion)
+	if err != nil {
+		return fmt.Errorf("check go version: %w", err)
+	}
+
+	if !ok {
+		p.WrongGoVersion = goVersion
 	}
 
 	return nil
