@@ -495,7 +495,7 @@ func TestProcessorSetBlockedModulesWithIndirectDependency(t *testing.T) {
 			processor.SetBlockedModules()
 
 			// Assert number of blocked modules
-			assert.Equal(t, len(tt.wantBlockedModules), len(processor.blockedModulesFromModFile))
+			assert.Len(t, processor.blockedModulesFromModFile, len(tt.wantBlockedModules))
 
 			// Assert blocked modules and reasons
 			for blockedModule, wantReasons := range tt.wantBlockedModules {

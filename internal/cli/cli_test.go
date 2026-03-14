@@ -33,7 +33,11 @@ func TestCmdRun(t *testing.T) {
 func TestWriteCheckstyle(t *testing.T) {
 	outFile, err := os.CreateTemp(t.TempDir(), "checkstyle-*.xml")
 	require.NoError(t, err)
-	defer outFile.Close()
+
+	defer func() {
+		err := outFile.Close()
+		require.NoError(t, err)
+	}()
 
 	issues := []gomodguard.Issue{
 		{

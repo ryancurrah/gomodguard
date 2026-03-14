@@ -1,4 +1,3 @@
-//nolint:scopelint
 package gomodguard_test
 
 import (
@@ -25,17 +24,7 @@ func TestProcessorNewProcessor(t *testing.T) {
 }
 
 func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
-	backupWd, err := os.Getwd()
-	if err != nil {
-		t.Error(err)
-	}
-
-	defer func() { _ = os.Chdir(backupWd) }()
-
-	err = os.Chdir("_example/allOptions")
-	if err != nil {
-		t.Error(err)
-	}
+	t.Chdir("_example/allOptions")
 
 	wd, err := os.Getwd()
 	if err != nil {

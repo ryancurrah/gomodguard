@@ -140,7 +140,7 @@ func GetConfig(configFile string) (*gomodguard.Configuration, error) {
 		return nil, fmt.Errorf("%w: %s %s", errFindingConfigFile, configFile, homeDirCfgFile)
 	}
 
-	data, err := os.ReadFile(cfgFile)
+	data, err := os.ReadFile(filepath.Clean(cfgFile))
 	if err != nil {
 		return nil, fmt.Errorf(errReadingConfigFile, err)
 	}

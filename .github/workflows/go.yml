@@ -23,30 +23,28 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-    - uses: actions/setup-go@v5
-      with:
-        go-version: stable
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
 
-    - name: Build
-      run: make build
+      - name: Build
+        run: make build
 
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v6
-      with:
-        version: latest
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
 
-    - name: Test
-      run: make test
+      - name: Test
+        run: make test
 
-    - name: Cover
-      run: make install-go-tools cover
+      - name: Cover
+        run: make install-go-tools cover
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5
-      with:
-        files: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: true
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: true

@@ -1,8 +1,8 @@
-# See https://golangci-lint.run/usage/configuration/
+version: "2"
+
 linters:
-  enable-all: true
+  default: all
   disable:
-    - tenv
     - lll
     - gomodguard
     - gochecknoglobals
@@ -13,7 +13,6 @@ linters:
     - forbidigo
     - funlen
     - nlreturn
-    - gofumpt
     - nonamedreturns
     - cyclop
     - err113
@@ -21,3 +20,11 @@ linters:
     - tagliatelle
     - wrapcheck
     - mnd
+    - wsl
+    - noinlineerr
+  settings:
+    revive:
+      rules:
+        - name: package-comments
+          disabled: true
+ 
