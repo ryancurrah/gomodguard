@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -72,7 +73,7 @@ func NewProcessor(config *Configuration) (*Processor, error) {
 // and lints them.
 func (p *Processor) ProcessFiles(filenames []string) (issues []Issue) {
 	for _, filename := range filenames {
-		data, err := os.ReadFile(filename)
+		data, err := os.ReadFile(filepath.Clean(filename))
 		if err != nil {
 			issues = append(issues, Issue{
 				FileName:   filename,
@@ -87,51 +88,6 @@ func (p *Processor) ProcessFiles(filenames []string) (issues []Issue) {
 	}
 
 	return issues
-}
-
-// process file imports and add lint error if blocked package is imported.
-func (p *Processor) process(filename string, data []byte) (issues []Issue) {
-	fileSet := token.NewFileSet()
-
-	file, err := parser.ParseFile(fileSet, filename, data, parser.ParseComments)
-	if err != nil {
-		issues = append(issues, Issue{
-			FileName:   filename,
-			LineNumber: 0,
-			Reason:     fmt.Sprintf("invalid syntax, file cannot be linted (%s)", err.Error()),
-		})
-
-		return
-	}
-
-	imports := file.Imports
-	for n := range imports {
-		importedPkg := strings.TrimSpace(strings.Trim(imports[n].Path.Value, "\""))
-
-		blockReasons := p.isBlockedPackageFromModFile(importedPkg)
-		if blockReasons == nil {
-			continue
-		}
-
-		for _, blockReason := range blockReasons {
-			issues = append(issues, p.addError(fileSet, imports[n].Pos(), blockReason))
-		}
-	}
-
-	return issues
-}
-
-// addError adds an error for the file and line number for the current token.Pos
-// with the given reason.
-func (p *Processor) addError(fileset *token.FileSet, pos token.Pos, reason string) Issue {
-	position := fileset.Position(pos)
-
-	return Issue{
-		FileName:   position.Filename,
-		LineNumber: position.Line,
-		Position:   position,
-		Reason:     reason,
-	}
 }
 
 // SetBlockedModules determines and sets which modules are blocked by reading
@@ -212,6 +168,51 @@ func (p *Processor) SetBlockedModules() { //nolint:funlen
 	p.blockedModulesFromModFile = blockedModules
 }
 
+// process file imports and add lint error if blocked package is imported.
+func (p *Processor) process(filename string, data []byte) (issues []Issue) {
+	fileSet := token.NewFileSet()
+
+	file, err := parser.ParseFile(fileSet, filename, data, parser.ParseComments)
+	if err != nil {
+		issues = append(issues, Issue{
+			FileName:   filename,
+			LineNumber: 0,
+			Reason:     fmt.Sprintf("invalid syntax, file cannot be linted (%s)", err.Error()),
+		})
+
+		return
+	}
+
+	imports := file.Imports
+	for n := range imports {
+		importedPkg := strings.TrimSpace(strings.Trim(imports[n].Path.Value, "\""))
+
+		blockReasons := p.isBlockedPackageFromModFile(importedPkg)
+		if blockReasons == nil {
+			continue
+		}
+
+		for _, blockReason := range blockReasons {
+			issues = append(issues, p.addError(fileSet, imports[n].Pos(), blockReason))
+		}
+	}
+
+	return issues
+}
+
+// addError adds an error for the file and line number for the current token.Pos
+// with the given reason.
+func (p *Processor) addError(fileset *token.FileSet, pos token.Pos, reason string) Issue {
+	position := fileset.Position(pos)
+
+	return Issue{
+		FileName:   position.Filename,
+		LineNumber: position.Line,
+		Position:   position,
+		Reason:     reason,
+	}
+}
+
 // isBlockedPackageFromModFile returns the block reason if the package is blocked.
 func (p *Processor) isBlockedPackageFromModFile(packageName string) []string {
 	for blockedModuleName, blockReasons := range p.blockedModulesFromModFile {
@@ -235,12 +236,12 @@ func (p *Processor) isBlockedPackageFromModFile(packageName string) []string {
 // If the "GOMOD" environment variable is set to "/dev/null", it returns an error indicating that the current working directory must have a go.mod file.
 // The function returns the contents of the go.mod file as a byte slice and any error encountered during the process.
 func loadGoModFile() ([]byte, error) {
-	cmd := exec.Command("go", "env", "-json")
+	cmd := exec.Command("go", "env", "-json") //nolint:noctx // Ack at some point might use os/exec.CommandContext.
 	stdout, _ := cmd.StdoutPipe()
 	_ = cmd.Start()
 
 	if stdout == nil {
-		return os.ReadFile(goModFilename)
+		return os.ReadFile(filepath.Clean(goModFilename))
 	}
 
 	buf := new(bytes.Buffer)
