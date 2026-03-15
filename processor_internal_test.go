@@ -182,7 +182,7 @@ func TestProcessorSetBlockedModulesWithAllowList(t *testing.T) {
 				"github.com/Masterminds/semver/v3",
 				"github.com/ryancurrah/gomodguard",
 			},
-			Domains: []string{
+			Prefixes: []string{
 				"golang.org",
 			},
 		},
@@ -403,7 +403,7 @@ func TestProcessorSetBlockedModulesWithIndirectDependency(t *testing.T) {
 						"github.com/Masterminds/semver/v3",
 						"github.com/ryancurrah/gomodguard",
 					},
-					Domains: []string{
+					Prefixes: []string{
 						"golang.org",
 					},
 				},
@@ -452,7 +452,7 @@ func TestProcessorSetBlockedModulesWithIndirectDependency(t *testing.T) {
 						"github.com/Masterminds/semver/v3",
 						"github.com/ryancurrah/gomodguard",
 					},
-					Domains: []string{
+					Prefixes: []string{
 						"golang.org",
 					},
 				},

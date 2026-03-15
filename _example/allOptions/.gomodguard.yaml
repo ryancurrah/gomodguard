@@ -4,7 +4,7 @@ allowed:
     - github.com/go-xmlfmt/xmlfmt
     - github.com/Masterminds/semver
     - github.com/ryancurrah/gomodguard
-  domains:                                                      # List of allowed module domains
+  prefixes:                                                      # List of allowed module prefixes
     - golang.org
 
 blocked:

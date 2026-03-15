@@ -94,7 +94,7 @@ func (p *Processor) ProcessFiles(filenames []string) (issues []Issue) {
 // the go.mod file of the module that is being linted.
 //
 // It works by iterating over the dependant modules specified in the require
-// directive, checking if the module domain or full name is in the allowed list.
+// directive, checking if the module prefix or full name is in the allowed list.
 func (p *Processor) SetBlockedModules() { //nolint:funlen
 	blockedModules := make(map[string][]string, len(p.Modfile.Require))
 	currentModuleName := p.Modfile.Module.Mod.Path
@@ -108,9 +108,9 @@ func (p *Processor) SetBlockedModules() { //nolint:funlen
 		var isAllowed bool
 
 		switch {
-		case len(p.Config.Allowed.Modules) == 0 && len(p.Config.Allowed.Domains) == 0:
+		case len(p.Config.Allowed.Modules) == 0 && len(p.Config.Allowed.Prefixes) == 0 && len(p.Config.Allowed.Domains) == 0:
 			isAllowed = true
-		case p.Config.Allowed.IsAllowedModuleDomain(lintedModuleName):
+		case p.Config.Allowed.IsAllowedModulePrefix(lintedModuleName):
 			isAllowed = true
 		case p.Config.Allowed.IsAllowedModule(lintedModuleName):
 			isAllowed = true
