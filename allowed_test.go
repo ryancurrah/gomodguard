@@ -38,16 +38,16 @@ func TestAllowedIsAllowedModule(t *testing.T) {
 	}
 }
 
-func TestAllowedIsAllowedModuleDomain(t *testing.T) {
+func TestAllowedIsAllowedModulePrefix(t *testing.T) {
 	var tests = []struct {
 		testName                  string
 		allowedModules            gomodguard.Allowed
 		lintedModuleName          string
-		wantIsAllowedModuleDomain bool
+		wantIsAllowedModulePrefix bool
 	}{
 		{
 			"module is allowed",
-			gomodguard.Allowed{Domains: []string{"github.com"}},
+			gomodguard.Allowed{Prefixes: []string{"github.com"}},
 			"github.com/someallowed/module",
 			true,
 		},
@@ -61,9 +61,9 @@ func TestAllowedIsAllowedModuleDomain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			isAllowedModuleDomain := tt.allowedModules.IsAllowedModuleDomain(tt.lintedModuleName)
-			if !reflect.DeepEqual(isAllowedModuleDomain, tt.wantIsAllowedModuleDomain) {
-				t.Errorf("got '%v' want '%v'", isAllowedModuleDomain, tt.wantIsAllowedModuleDomain)
+			isAllowedModulePrefix := tt.allowedModules.IsAllowedModulePrefix(tt.lintedModuleName)
+			if !reflect.DeepEqual(isAllowedModulePrefix, tt.wantIsAllowedModulePrefix) {
+				t.Errorf("got '%v' want '%v'", isAllowedModulePrefix, tt.wantIsAllowedModulePrefix)
 			}
 		})
 	}

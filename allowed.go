@@ -1,12 +1,16 @@
 package gomodguard
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // Allowed is a list of modules and module
-// domains that are allowed to be used.
+// prefixes that are allowed to be used.
 type Allowed struct {
-	Modules []string `yaml:"modules"`
-	Domains []string `yaml:"domains"`
+	Modules  []string `yaml:"modules"`
+	Domains  []string `yaml:"domains"`
+	Prefixes []string `yaml:"prefixes"`
 }
 
 // IsAllowedModule returns true if the given module
@@ -23,14 +27,17 @@ func (a *Allowed) IsAllowedModule(moduleName string) bool {
 	return false
 }
 
-// IsAllowedModuleDomain returns true if the given modules domain is
-// in the allowed module domains list.
-func (a *Allowed) IsAllowedModuleDomain(moduleName string) bool {
-	allowedDomains := a.Domains
+// IsAllowedModulePrefix returns true if the given modules prefix is
+// in the allowed module prefixes list.
+func (a *Allowed) IsAllowedModulePrefix(moduleName string) bool {
+	allowedPrefixes := make([]string, 0, len(a.Prefixes)+len(a.Domains))
+	allowedPrefixes = append(allowedPrefixes, a.Prefixes...)
+	allowedPrefixes = append(allowedPrefixes, a.Domains...)
+	allowedPrefixes = slices.Compact(allowedPrefixes)
 
-	for i := range allowedDomains {
+	for i := range allowedPrefixes {
 		if strings.HasPrefix(strings.TrimSpace(strings.ToLower(moduleName)),
-			strings.TrimSpace(strings.ToLower(allowedDomains[i]))) {
+			strings.TrimSpace(strings.ToLower(allowedPrefixes[i]))) {
 			return true
 		}
 	}

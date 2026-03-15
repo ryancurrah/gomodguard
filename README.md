@@ -14,9 +14,9 @@ Allow and block list linter for direct Go module dependencies. This is useful fo
 
 Allowed and blocked modules are defined in a `./.gomodguard.yaml` or `~/.gomodguard.yaml` file. 
 
-Modules can be allowed by module or domain name. When allowed modules are specified any modules not in the allowed configuration are blocked.
+Modules can be allowed by module or prefix name. When allowed modules are specified any modules not in the allowed configuration are blocked.
 
-If no allowed modules or domains are specified then all modules are allowed except for blocked ones.
+If no allowed modules or module prefixes are specified then all modules are allowed except for blocked ones.
 
 The linter looks for blocked modules in `go.mod` and searches for imported packages where the imported packages module is blocked. Indirect modules are not considered.
 
@@ -41,8 +41,11 @@ allowed:
     - github.com/go-xmlfmt/xmlfmt
     - github.com/phayes/checkstyle
     - github.com/mitchellh/go-homedir
-  domains:                                                      # List of allowed module domains
-    - golang.org
+    - github.com/confluentinc/confluent-kafka-go/v2   # Allow v2 only
+  prefixes:                                                     # List of allowed module prefixes (Replaced domains which is now deprecated)
+    - golang.org                  # Allow all golang.org modules
+    - github.com/kubernetes       # Allow all Kubernetes modules
+    - github.com/apache/arrow-go  # Allow all Apache Arrow module major versions
 
 blocked:
   modules:                                                      # List of blocked modules
@@ -89,7 +92,7 @@ Flags:
 ╰─ ./gomodguard -r checkstyle -f gomodguard-checkstyle.xml ./...
 
 info: allowed modules, [gopkg.in/yaml.v3 github.com/go-xmlfmt/xmlfmt github.com/phayes/checkstyle github.com/mitchellh/go-homedir]
-info: allowed module domains, [golang.org]
+info: allowed module prefixes, [golang.org]
 info: blocked modules, [github.com/uudashr/go-module]
 info: found `2` blocked modules in the go.mod file, [github.com/gofrs/uuid github.com/uudashr/go-module]
 blocked_example.go:6: import of package `github.com/gofrs/uuid` is blocked because the module is not in the allowed modules list.

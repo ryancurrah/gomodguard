@@ -94,7 +94,13 @@ func Run() int {
 	}
 
 	logger.Printf("info: allowed modules, %+v", config.Allowed.Modules)
-	logger.Printf("info: allowed module domains, %+v", config.Allowed.Domains)
+	logger.Printf("info: allowed module prefixes, %+v", config.Allowed.Prefixes)
+
+	if len(config.Allowed.Domains) > 0 {
+		logger.Printf("info: allowed module domains, %+v", config.Allowed.Domains)
+		logger.Printf("warning: 'domains' is deprecated, please use 'prefixes' instead")
+	}
+
 	logger.Printf("info: blocked modules, %+v", config.Blocked.Modules.Get())
 	logger.Printf("info: blocked modules with version constraints, %+v", config.Blocked.Versions.Get())
 
