@@ -26,37 +26,66 @@ If the linted module imports a blocked module but the linted module is in the re
 
 Version constraints can be specified for modules as well which lets you block new or old versions of modules or specific versions.
 
+When multiple rules can match the same module (e.g., overlapping exact, prefix, and regex rules), they are evaluated using a layered strategy for deterministic results:
+
+1. **Exact match** — highest priority; wins over prefix and regex.
+2. **Prefix match** — next priority; longest matching prefix wins.
+3. **Regex match** — lowest priority; evaluated in alphabetical key order; first match wins.
+
 Results are printed to `stdout`.
 
 Logging statements are printed to `stderr`.
 
 Results can be exported to different report formats. Which can be imported into CI tools. See the help section for more information.
 
-## Configuration
+# Configuration
 
 ```yaml
 allowed:
-  modules:                                                      # List of allowed modules
-    - gopkg.in/yaml.v3
-    - github.com/go-xmlfmt/xmlfmt
-    - github.com/phayes/checkstyle
-    - github.com/mitchellh/go-homedir
-    - github.com/confluentinc/confluent-kafka-go/v2   # Allow v2 only
-  prefixes:                                                     # List of allowed module prefixes (Replaced domains which is now deprecated)
-    - golang.org                  # Allow all golang.org modules
-    - github.com/kubernetes       # Allow all Kubernetes modules
-    - github.com/apache/arrow-go  # Allow all Apache Arrow module major versions
+  go.yaml.in/yaml/v4:
+  github.com/go-xmlfmt/xmlfmt:
+  github.com/confluentinc/confluent-kafka-go/v2:
+    version: "== 2.5.0"
+  github.com/kubernetes:
+    match_type: prefix
+  github.com/apache/arrow-go:
+    match_type: prefix
+  "github.com/somecompany/.*":
+    match_type: regex
 
 blocked:
-  modules:                                                      # List of blocked modules
-    - github.com/uudashr/go-module:                             # Blocked module
-        recommendations:                                        # Recommended modules that should be used instead (Optional)
-          - golang.org/x/mod                           
-        reason: "`mod` is the official go.mod parser library."  # Reason why the recommended module should be used (Optional)
-  versions:                                                     # List of blocked module version constraints.
-    - github.com/mitchellh/go-homedir:                          # Blocked module with version constraint.
-        version: "<= 1.1.0"                                     # Version constraint, see https://github.com/Masterminds/semver#basic-comparisons.
-        reason: "testing if blocked version constraint works."  # Reason why the version constraint exists.
+  github.com/uudashr/go-module:
+    match_type: exact # or regex, prefix
+    recommendations:
+      - golang.org/x/mod
+    reason: "`mod` is the official go.mod parser library."
+  github.com/mitchellh/go-homedir:
+    version: "<= 1.1.0"
+    reason: "testing if blocked version constraint works."
+  "github.com/badcompany/.*":
+    match_type: regex
+    reason: "No badcompany packages are permitted."
+```
+
+## Example .gomodguard.yaml Files
+
+The following example configuration files are available:
+
+- [examples/alloptions/.gomodguard.yaml](examples/alloptions/.gomodguard.yaml)
+- [examples/allowedversion/.gomodguard.yaml](examples/allowedversion/.gomodguard.yaml)
+- [examples/emptyallowlist/.gomodguard.yaml](examples/emptyallowlist/.gomodguard.yaml)
+- [examples/indirectdep/.gomodguard.yaml](examples/indirectdep/.gomodguard.yaml)
+- [examples/majorversion/.gomodguard.yaml](examples/majorversion/.gomodguard.yaml)
+- [examples/regexversion/.gomodguard.yaml](examples/regexversion/.gomodguard.yaml)
+- [examples/regextest/.gomodguard.yaml](examples/regextest/.gomodguard.yaml)
+
+### Migrating from v1
+
+If you have a v1 `.gomodguard.yaml` file, you can automatically migrate it to the new v2 schema by running:
+
+```
+gomodguard migrate > .gomodguard-v2.yaml
+mv .gomodguard-v2.yaml .gomodguard.yaml
 ```
 
 ## Usage
@@ -89,14 +118,14 @@ Flags:
 ## Example
 
 ```
-╰─ ./gomodguard -r checkstyle -f gomodguard-checkstyle.xml ./...
+╰─ cd examples/alloptions
+╰─ gomodguard -r checkstyle -f gomodguard-checkstyle.xml ./...
 
-info: allowed modules, [gopkg.in/yaml.v3 github.com/go-xmlfmt/xmlfmt github.com/phayes/checkstyle github.com/mitchellh/go-homedir]
-info: allowed module prefixes, [golang.org]
-info: blocked modules, [github.com/uudashr/go-module]
-info: found `2` blocked modules in the go.mod file, [github.com/gofrs/uuid github.com/uudashr/go-module]
-blocked_example.go:6: import of package `github.com/gofrs/uuid` is blocked because the module is not in the allowed modules list.
-blocked_example.go:7: import of package `github.com/uudashr/go-module` is blocked because the module is in the blocked modules list. `golang.org/x/mod` is a recommended module. `mod` is the official go.mod parser library.
+info: allowed modules, [github.com/Masterminds/semver/v3 github.com/go-xmlfmt/xmlfmt golang.org gopkg.in/yaml.v3]
+info: blocked modules, [github.com/gofrs/uuid github.com/mitchellh/go-homedir github.com/uudashr/go-module]
+blocked_example.go:6:1 import of package `github.com/gofrs/uuid` is blocked because the module is in the blocked modules list. `github.com/ryancurrah/gomodguard` is a recommended module. testing if module is not blocked when it is recommended.
+blocked_example.go:7:1 import of package `github.com/mitchellh/go-homedir` is blocked because the module is in the blocked modules list. version `v1.1.0` is blocked because it does not meet the version constraint `<=1.1.0`. testing if blocked version constraint works.
+blocked_example.go:8:1 import of package `github.com/uudashr/go-module` is blocked because the module is in the blocked modules list. `golang.org/x/mod` is a recommended module. `mod` is the official go.mod parser library.
 ```
 
 Resulting checkstyle file
@@ -107,10 +136,9 @@ Resulting checkstyle file
 <?xml version="1.0" encoding="UTF-8"?>
 <checkstyle version="1.0.0">
   <file name="blocked_example.go">
-    <error line="6" column="1" severity="error" message="import of package `github.com/gofrs/uuid` is blocked because the module is not in the allowed modules list." source="gomodguard">
-    </error>
-    <error line="7" column="1" severity="error" message="import of package `github.com/uudashr/go-module` is blocked because the module is in the blocked modules list. `golang.org/x/mod` is a recommended module. `mod` is the official go.mod parser library." source="gomodguard">
-    </error>
+    <error line="6" column="1" severity="error" message="import of package `github.com/gofrs/uuid` is blocked because the module is in the blocked modules list. `github.com/ryancurrah/gomodguard` is a recommended module. testing if module is not blocked when it is recommended." source="gomodguard"></error>
+    <error line="7" column="1" severity="error" message="import of package `github.com/mitchellh/go-homedir` is blocked because the module is in the blocked modules list. version `v1.1.0` is blocked because it does not meet the version constraint `&lt;=1.1.0`. testing if blocked version constraint works." source="gomodguard"></error>
+    <error line="8" column="1" severity="error" message="import of package `github.com/uudashr/go-module` is blocked because the module is in the blocked modules list. `golang.org/x/mod` is a recommended module. `mod` is the official go.mod parser library." source="gomodguard"></error>
   </file>
 </checkstyle>
 ```
@@ -118,15 +146,15 @@ Resulting checkstyle file
 ## Install
 
 ```
-go install github.com/ryancurrah/gomodguard/cmd/gomodguard
+go install github.com/ryancurrah/gomodguard/v2/cmd/gomodguard@latest
 ```
 
 ## Develop
 
 ```
-git clone https://github.com/ryancurrah/gomodguard.git && cd gomodguard
+git clone https://github.com/ryancurrah/gomodguard.git && cd gomodguard/cmd/gomodguard
 
-go build -o gomodguard cmd/gomodguard/main.go
+go build -o gomodguard main.go
 ```
 
 ## License

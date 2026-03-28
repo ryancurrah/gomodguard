@@ -1,0 +1,5 @@
+blocked:
+  github.com/gofrs/uuid:
+    recommendations:
+      - github.com/gofrs/uuid/v5
+    reason: "testing that a major version module is not blocked by a rule targeting the base module."

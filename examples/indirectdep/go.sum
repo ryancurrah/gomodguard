@@ -1,0 +1,6 @@
+github.com/gofrs/uuid v3.3.0+incompatible h1:8K4tyRfvU1CYPgJsveYFQMhpFd/wXNM7iK6rR7UHz84=
+github.com/gofrs/uuid v3.3.0+incompatible/go.mod h1:b2aQJv3Z4Fp6yNu3cdSllBxTCLRxnplIgP/c0N/04lM=
+github.com/mitchellh/go-homedir v1.1.0 h1:lukF9ziXFxDFPkA1vsr5zpc1XuPDn/wFntq5mG+4E0Y=
+github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
+github.com/uudashr/go-module v0.0.0-20200529023307-c90a4239ad70 h1:t/4GlAfaNAVbh8GqZmHl96pFwlaw7+DAwp2OjUMOxgw=
+github.com/uudashr/go-module v0.0.0-20200529023307-c90a4239ad70/go.mod h1:P6Nk1sQWL6jcdBIxnLVlqCsOl0arao7gg7sPoM6gx4A=

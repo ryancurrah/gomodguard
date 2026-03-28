@@ -1,0 +1,4 @@
+blocked:
+  "golang\\.org/x/.*":
+    match_type: regex
+    reason: "testing regex based blocking."

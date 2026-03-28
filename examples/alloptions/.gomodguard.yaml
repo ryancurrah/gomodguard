@@ -1,0 +1,19 @@
+allowed:
+  gopkg.in/yaml.v3:
+  github.com/go-xmlfmt/xmlfmt:
+  github.com/Masterminds/semver/v3:
+  golang.org:
+    match_type: prefix
+
+blocked:
+  github.com/uudashr/go-module:
+    recommendations:
+      - golang.org/x/mod
+    reason: "`mod` is the official go.mod parser library."
+  github.com/gofrs/uuid:
+    recommendations:
+      - github.com/ryancurrah/gomodguard
+    reason: "testing if module is not blocked when it is recommended."
+  github.com/mitchellh/go-homedir:
+    version: "<= 1.1.0"
+    reason: "testing if blocked version constraint works."

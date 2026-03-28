@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ryancurrah/gomodguard"
+	"github.com/ryancurrah/gomodguard/v2"
 )
 
 func TestResultString(t *testing.T) {
