@@ -25,7 +25,8 @@ const (
 )
 
 var (
-	blockReasonInBlockedList = "import of package `%s` is blocked because the module is in the blocked modules list."
+	blockReasonInBlockedList            = "import of package `%s` is blocked because the module is in the blocked modules list."
+	blockReasonHasLocalReplaceDirective = "import of package `%s` is blocked because the module has a local replace directive."
 
 	// startsWithVersion is used to test when a string begins with the version identifier of a module,
 	// after having stripped the prefix base module name. IE "github.com/foo/bar/v2/baz" => "v2/baz"
@@ -106,8 +107,9 @@ func (idx *ruleIndex) bestMatch(moduleName string) (string, bool) {
 
 // Configuration of gomodguard allow and block lists.
 type Configuration struct {
-	Allowed Allowed `yaml:"allowed"`
-	Blocked Blocked `yaml:"blocked"`
+	Allowed                Allowed `yaml:"allowed"`
+	Blocked                Blocked `yaml:"blocked"`
+	LocalReplaceDirectives bool    `yaml:"local_replace_directives"`
 }
 
 // InitMatchers initializes matchers for the configuration rules.
@@ -203,7 +205,7 @@ func (p *Processor) ProcessFiles(filenames []string) (issues []Issue) {
 //  1. Exact match — O(1) lookup; wins immediately.
 //  2. Prefix match — longest matching prefix wins.
 //  3. Regex match — evaluated in alphabetical key order; first match wins.
-func (p *Processor) SetBlockedModules() {
+func (p *Processor) SetBlockedModules() { //nolint:gocognit // Ack this is a long func.
 	blockedModules := make(map[string][]string, len(p.Modfile.Require))
 	currentModuleName := p.Modfile.Module.Mod.Path
 	requiredModules := p.Modfile.Require
@@ -295,6 +297,19 @@ func (p *Processor) SetBlockedModules() {
 		if !isAllowed {
 			blockedModules[requiredModuleName] = append(blockedModules[requiredModuleName],
 				fmt.Sprintf("import of package `%%s` is blocked because %s", matchedButWrongVersion.NotAllowedReason(requiredModuleVersion)))
+		}
+	}
+
+	// Blocks local 'replace' directives to prevent committing dev overrides.
+	// Legitimate sibling modules in multi-module repos (sharing the same
+	// module name) are exempt.
+	if p.Config.LocalReplaceDirectives {
+		for _, r := range p.Modfile.Replace {
+			if isBlockedLocalReplace(r) {
+				blockedModules[r.Old.Path] = append(blockedModules[r.Old.Path],
+					blockReasonHasLocalReplaceDirective,
+				)
+			}
 		}
 	}
 
@@ -427,6 +442,43 @@ func loadGoModFile() ([]byte, error) {
 	}
 
 	return os.ReadFile(goEnv["GOMOD"])
+}
+
+// isBlockedLocalReplace returns true if the replace directive points to a local
+// filesystem path that is not a legitimate sibling module.
+func isBlockedLocalReplace(r *modfile.Replace) bool {
+	if r.New.Path == "" || r.New.Version != "" {
+		return false
+	}
+
+	replacePath := r.New.Path
+	if !filepath.IsAbs(replacePath) {
+		wd, err := os.Getwd()
+		if err != nil {
+			wd = "."
+		}
+
+		replacePath = filepath.Join(wd, replacePath)
+	}
+
+	return !isModuleAtPath(replacePath, r.Old.Path)
+}
+
+// isModuleAtPath returns true if the directory at path contains a go.mod file
+// that declares moduleName as its module, indicating a legitimate sibling module
+// in a multi-module repository rather than a local development override.
+func isModuleAtPath(path, moduleName string) bool {
+	data, err := os.ReadFile(filepath.Clean(filepath.Join(path, goModFilename)))
+	if err != nil {
+		return false
+	}
+
+	mf, err := modfile.Parse(goModFilename, data, nil)
+	if err != nil {
+		return false
+	}
+
+	return mf.Module.Mod.Path == moduleName
 }
 
 // isPackageInModule determines if a package is a part of the specified Go module.
