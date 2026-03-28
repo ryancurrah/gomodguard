@@ -28,8 +28,9 @@ type V1BlockedModule struct {
 }
 
 type V1Blocked struct {
-	Modules  []map[string]V1BlockedModule  `yaml:"modules"`
-	Versions []map[string]V1BlockedVersion `yaml:"versions"`
+	Modules                []map[string]V1BlockedModule  `yaml:"modules"`
+	Versions               []map[string]V1BlockedVersion `yaml:"versions"`
+	LocalReplaceDirectives bool                          `yaml:"local_replace_directives"`
 }
 
 type V1Configuration struct {
@@ -51,8 +52,9 @@ func MigrateConfig(filename string) int {
 	}
 
 	v2 := gomodguard.Configuration{
-		Allowed: make(gomodguard.Allowed),
-		Blocked: make(gomodguard.Blocked),
+		Allowed:                make(gomodguard.Allowed),
+		Blocked:                make(gomodguard.Blocked),
+		LocalReplaceDirectives: v1.Blocked.LocalReplaceDirectives,
 	}
 
 	for _, mod := range v1.Allowed.Modules {

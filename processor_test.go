@@ -83,6 +83,20 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 			},
 			notWantReasons: []string{"github.com/gofrs/uuid"},
 		},
+		"allowed version - fails version constraint": {
+			exampleDir: "examples/allowedversion",
+			config: &gomodguard.Configuration{
+				Allowed: gomodguard.Allowed{
+					"github.com/Masterminds/semver/v3": gomodguard.AllowedRule{
+						Version: mustConstraint(t, ">= 3.2.0"),
+					},
+				},
+			},
+			wantReasons: []string{
+				"example.go:3:1 import of package `github.com/Masterminds/semver/v3` is blocked because " +
+					"version `v3.1.0` does not meet the allowed version constraint `>=3.2.0`.",
+			},
+		},
 		"allowed version - passes version constraint": {
 			exampleDir: "examples/allowedversion",
 			config: &gomodguard.Configuration{
@@ -156,6 +170,46 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 			notWantReasons: []string{
 				"regex catch-all should NOT be selected",
 			},
+		},
+		"local replace directive - blocked when no go.mod at replacement path": {
+			exampleDir: "examples/localreplace_nomod",
+			config: &gomodguard.Configuration{
+				LocalReplaceDirectives: true,
+			},
+			wantReasons: []string{
+				"example.go:3:1 import of package `github.com/uudashr/go-module` is blocked because the module has a local replace directive.",
+			},
+		},
+		"local replace directive - not blocked when disabled": {
+			exampleDir: "examples/localreplace_nomod",
+			config: &gomodguard.Configuration{
+				LocalReplaceDirectives: false,
+			},
+			wantEmpty: true,
+		},
+		"major version - v1 import is blocked, v5 import is not": {
+			exampleDir: "examples/majorversion",
+			config: &gomodguard.Configuration{
+				Blocked: gomodguard.Blocked{
+					"github.com/gofrs/uuid": gomodguard.BlockedRule{
+						Recommendations: []string{"github.com/gofrs/uuid/v5"},
+						Reason:          "testing that a major version module is not blocked by a rule targeting the base module.",
+					},
+				},
+			},
+			wantReasons: []string{
+				"example.go:4:1 import of package `github.com/gofrs/uuid` is blocked because the module is in the blocked modules list. " +
+					"`github.com/gofrs/uuid/v5` is a recommended module. " +
+					"testing that a major version module is not blocked by a rule targeting the base module.",
+			},
+			notWantReasons: []string{"example.go:5:"},
+		},
+		"local replace directive - not blocked when replacement is a sibling module": {
+			exampleDir: "examples/localreplace",
+			config: &gomodguard.Configuration{
+				LocalReplaceDirectives: true,
+			},
+			wantEmpty: true,
 		},
 		"precedence - longest prefix wins over shorter prefix": {
 			exampleDir: "examples/alloptions",

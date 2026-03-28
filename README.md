@@ -26,12 +26,6 @@ If the linted module imports a blocked module but the linted module is in the re
 
 Version constraints can be specified for modules as well which lets you block new or old versions of modules or specific versions.
 
-When multiple rules can match the same module (e.g., overlapping exact, prefix, and regex rules), they are evaluated using a layered strategy for deterministic results:
-
-1. **Exact match** — highest priority; wins over prefix and regex.
-2. **Prefix match** — next priority; longest matching prefix wins.
-3. **Regex match** — lowest priority; evaluated in alphabetical key order; first match wins.
-
 Results are printed to `stdout`.
 
 Logging statements are printed to `stderr`.
@@ -41,11 +35,21 @@ Results can be exported to different report formats. Which can be imported into 
 # Configuration
 
 ```yaml
+# allowed defines the modules that are permitted as direct dependencies.
+# When this section is non-empty, any module not matched by an entry is blocked.
+# When omitted entirely, all modules are allowed except those in the blocked list.
 allowed:
+  # Exact match (default when match_type is omitted).
   go.yaml.in/yaml/v4:
   github.com/go-xmlfmt/xmlfmt:
+
+  # version constrains which versions of the module are allowed.
+  # Uses semver constraint syntax (e.g. ">= 1.0.0", "~1.2", "== 2.5.0").
   github.com/confluentinc/confluent-kafka-go/v2:
     version: "== 2.5.0"
+
+  # match_type controls how the key is matched against module paths.
+  # Options: exact (default), prefix, regex
   github.com/kubernetes:
     match_type: prefix
   github.com/apache/arrow-go:
@@ -53,19 +57,62 @@ allowed:
   "github.com/somecompany/.*":
     match_type: regex
 
+# blocked defines modules that are not permitted as direct dependencies.
 blocked:
   github.com/uudashr/go-module:
-    match_type: exact # or regex, prefix
+    # match_type controls how the key is matched against module paths.
+    # Options: exact (default), prefix, regex
+    match_type: exact
+
+    # recommendations lists alternative modules to suggest in the lint error.
     recommendations:
       - golang.org/x/mod
+
+    # reason is a human-readable explanation appended to the lint error.
     reason: "`mod` is the official go.mod parser library."
+
   github.com/mitchellh/go-homedir:
+    # version constrains which versions of the module are blocked.
+    # Uses semver constraint syntax. When omitted, all versions are blocked.
     version: "<= 1.1.0"
-    reason: "testing if blocked version constraint works."
+    reason: "old versions have a known bug."
+
   "github.com/badcompany/.*":
     match_type: regex
     reason: "No badcompany packages are permitted."
+
+# Blocks 'replace' directives using local filesystem paths to prevent 
+# accidental commits of dev overrides. Sibling modules in multi-module 
+# repos are automatically detected and permitted.
+local_replace_directives: true
 ```
+
+### Field reference
+
+#### Top-level fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `allowed` | map | *(none)* | Modules that are permitted. When non-empty, anything not matched is blocked. |
+| `blocked` | map | *(none)* | Modules that are explicitly blocked. |
+| `local_replace_directives` | bool | `false` | Block any module whose `replace` directive points to a local filesystem path. Multi-module repo aware: sibling modules whose replacement path contains a matching `go.mod` are not blocked. |
+
+#### `allowed` / `blocked` rule fields
+
+| Field | Type | Description |
+|---|---|---|
+| `match_type` | `exact` \| `prefix` \| `regex` | How the rule key is matched against a module path. Defaults to `exact`. |
+| `version` | semver constraint string | Restricts the rule to specific versions (e.g. `<= 1.2.0`, `>= 2.0.0`). When omitted, all versions match. |
+| `recommendations` | list of module paths | *(blocked only)* Alternative modules to suggest in the lint error. If the module being linted is itself in this list, the block is skipped. |
+| `reason` | string | *(blocked only)* Human-readable explanation appended to the lint error. |
+
+#### Match type precedence
+
+When multiple rules can match the same module the following precedence applies:
+
+1. **Exact match** — highest priority; wins over prefix and regex.
+2. **Prefix match** — next priority; longest matching prefix wins.
+3. **Regex match** — lowest priority; evaluated in alphabetical key order; first match wins.
 
 ## Example .gomodguard.yaml Files
 
@@ -91,9 +138,14 @@ mv .gomodguard-v2.yaml .gomodguard.yaml
 ## Usage
 
 ```
-╰─ ./gomodguard -h
+╰─ gomodguard -help
 Usage: gomodguard <file> [files...]
 Also supports package syntax but will use it in relative path, i.e. ./pkg/...
+
+Commands:
+  (default)  Lint Go module dependencies using the configuration file
+  migrate    Convert a v1 .gomodguard.yaml config file to v2 format and print to stdout
+
 Flags:
   -f string
     	Report results to the specified file. A report type must also be specified
@@ -104,15 +156,17 @@ Flags:
 
   -i int
     	Exit code when issues were found (default 2)
-  -issues-exit-code int 
-      (default 2)
-  
+  -issues-exit-code int
+    	 (default 2)
   -n	Don't lint test files
   -no-test
 
   -r string
     	Report results to one of the following formats: checkstyle. A report file destination must also be specified
   -report string
+
+  -version
+    	Print the version
 ```
 
 ## Example

@@ -69,9 +69,12 @@ func Run() int {
 		info, ok := debug.ReadBuildInfo()
 		if !ok {
 			fmt.Println("Failed to read build info")
+
 			return 1
 		}
+
 		fmt.Printf("gomodguard version: %s\n", info.Main.Version)
+
 		return 0
 	}
 
