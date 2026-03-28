@@ -1,12 +1,17 @@
 current_dir = $(shell pwd)
 
+.PHONY: goimports
+goimports:
+	find . -name '*.go' -exec goimports -w -local github.com/ryancurrah/gomodguard {} +
+
 .PHONY: lint
 lint:
 	golangci-lint run ./...
+	cd cmd/gomodguard && golangci-lint run ./...
 
 .PHONY: build
 build:
-	go build -o "$$(go env GOPATH)/bin/gomodguard" cmd/gomodguard/main.go
+	cd cmd/gomodguard && go build -o "$$(go env GOPATH)/bin/gomodguard" main.go
 
 .PHONY: run
 run: build
@@ -14,7 +19,9 @@ run: build
 
 .PHONY: test
 test:
-	go test -v -coverprofile coverage.out 
+	go test -v -coverprofile coverage.out
+	cd cmd/gomodguard && go test -v -coverprofile coverage.out ./...
+	cat cmd/gomodguard/coverage.out | tail -n +2 >> coverage.out
 
 .PHONY: cover
 cover:
@@ -26,16 +33,25 @@ dockerrun: dockerbuild
 
 .PHONY: snapshot
 snapshot:
-	goreleaser --clean --snapshot
+	cd cmd/gomodguard && goreleaser --clean --snapshot
 
 .PHONY: release
 release:
-	goreleaser --clean
+	cd cmd/gomodguard && goreleaser --clean
 
 .PHONY: clean
 clean:
 	rm -rf dist/
 	rm -f gomodguard coverage.xml coverage.out
+	rm -f cmd/gomodguard/coverage.out
+
+.PHONY: tag
+tag:
+	@current=$$(git tag --sort=-v:refname --list 'v*' | head -n1 || echo "none"); \
+	read -p "Current version: $$current. Enter new version: " version; \
+	git tag "$$version" && \
+	git tag "cmd/gomodguard/$$version" && \
+	git push origin "$$version" "cmd/gomodguard/$$version"
 
 .PHONY: install-mac-tools
 install-tools-mac:

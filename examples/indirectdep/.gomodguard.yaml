@@ -1,0 +1,10 @@
+allowed:
+  github.com/mitchellh/go-homedir:
+
+blocked:
+  github.com/uudashr/go-module:
+    recommendations:
+      - golang.org/x/mod
+    reason: "`mod` is the official go.mod parser library."
+  github.com/gofrs/uuid:
+    reason: "testing blocked indirect dependency."

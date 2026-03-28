@@ -7,70 +7,74 @@ import (
 	"github.com/Masterminds/semver/v3"
 )
 
-// Blocked is a list of modules that are
-// blocked and not to be used.
-type Blocked struct {
-	Modules                BlockedModules  `yaml:"modules"`
-	Versions               BlockedVersions `yaml:"versions"`
-	LocalReplaceDirectives bool            `yaml:"local_replace_directives"`
+// Blocked is a map of modules that are blocked and not to be used.
+type Blocked map[string]BlockedRule
+
+// BlockedRule represents a rule for a blocked module.
+type BlockedRule struct {
+	MatchType       MatchType           `yaml:"match_type"`
+	Recommendations []string            `yaml:"recommendations"`
+	Reason          string              `yaml:"reason"`
+	Version         *semver.Constraints `yaml:"version"`
+	Matcher         Matcher             `yaml:"-"`
 }
 
-// BlockedVersion has a version constraint a reason why the module version is blocked.
-type BlockedVersion struct {
-	Version string `yaml:"version"`
-	Reason  string `yaml:"reason"`
-}
-
-// IsLintedModuleVersionBlocked returns true if a version constraint is specified and the
-// linted module version matches the constraint.
-func (r *BlockedVersion) IsLintedModuleVersionBlocked(lintedModuleVersion string) (bool, error) {
-	if r.Version == "" {
-		return false, nil
+// CheckVersion returns true if the module version matches the blocked constraint.
+// If no version constraint is specified, all versions are considered blocked.
+func (r *BlockedRule) CheckVersion(moduleVersion string) (bool, error) {
+	if r.Version == nil {
+		return true, nil
 	}
 
-	constraint, err := semver.NewConstraint(r.Version)
+	version, err := semver.NewVersion(moduleVersion)
 	if err != nil {
 		return true, err
 	}
 
-	version, err := semver.NewVersion(lintedModuleVersion)
-	if err != nil {
-		return true, err
-	}
-
-	return constraint.Check(version), nil
+	return r.Version.Check(version), nil
 }
 
-// Message returns the reason why the module version is blocked.
-func (r *BlockedVersion) Message(lintedModuleVersion string) string {
+// BlockReason returns the reason why the module or version is blocked.
+func (r *BlockedRule) BlockReason(currentModuleVersion string) string {
 	var sb strings.Builder
 
-	// Add version contraint to message.
-	_, _ = fmt.Fprintf(&sb, "version `%s` is blocked because it does not meet the version constraint `%s`.",
-		lintedModuleVersion, r.Version)
-
-	if r.Reason == "" {
-		return sb.String()
+	if r.Version != nil {
+		_, _ = fmt.Fprintf(&sb, "version `%s` is blocked because it does not meet the version constraint `%s`.",
+			currentModuleVersion, r.Version)
 	}
 
-	// Add reason to message.
-	_, _ = fmt.Fprintf(&sb, " %s.", strings.TrimRight(r.Reason, "."))
+	if len(r.Recommendations) > 0 {
+		if sb.Len() > 0 {
+			sb.WriteString(" ")
+		}
+
+		for i := range r.Recommendations {
+			switch {
+			case len(r.Recommendations) == 1:
+				_, _ = fmt.Fprintf(&sb, "`%s` is a recommended module.", r.Recommendations[i])
+			case (i+1) != len(r.Recommendations) && (i+1) == (len(r.Recommendations)-1):
+				_, _ = fmt.Fprintf(&sb, "`%s` ", r.Recommendations[i])
+			case (i + 1) != len(r.Recommendations):
+				_, _ = fmt.Fprintf(&sb, "`%s`, ", r.Recommendations[i])
+			default:
+				_, _ = fmt.Fprintf(&sb, "and `%s` are recommended modules.", r.Recommendations[i])
+			}
+		}
+	}
+
+	if r.Reason != "" {
+		if sb.Len() > 0 {
+			_, _ = fmt.Fprintf(&sb, " %s.", strings.TrimRight(r.Reason, "."))
+		} else {
+			_, _ = fmt.Fprintf(&sb, "%s.", strings.TrimRight(r.Reason, "."))
+		}
+	}
 
 	return sb.String()
 }
 
-// BlockedModule has alternative modules to use and a reason why the module is blocked.
-type BlockedModule struct {
-	Recommendations []string `yaml:"recommendations"`
-	Reason          string   `yaml:"reason"`
-}
-
 // IsCurrentModuleARecommendation returns true if the current module is in the Recommendations list.
-//
-// If the current go.mod file being linted is a recommended module of a
-// blocked module and it imports that blocked module, do not set as blocked.
-// This could mean that the linted module is a wrapper for that blocked module.
-func (r *BlockedModule) IsCurrentModuleARecommendation(currentModuleName string) bool {
+func (r *BlockedRule) IsCurrentModuleARecommendation(currentModuleName string) bool {
 	if r == nil {
 		return false
 	}
@@ -84,41 +88,8 @@ func (r *BlockedModule) IsCurrentModuleARecommendation(currentModuleName string)
 	return false
 }
 
-// Message returns the reason why the module is blocked and a list of recommended modules if provided.
-func (r *BlockedModule) Message() string {
-	var sb strings.Builder
-
-	// Add recommendations to message
-	for i := range r.Recommendations {
-		switch {
-		case len(r.Recommendations) == 1:
-			_, _ = fmt.Fprintf(&sb, "`%s` is a recommended module.", r.Recommendations[i])
-		case (i+1) != len(r.Recommendations) && (i+1) == (len(r.Recommendations)-1):
-			_, _ = fmt.Fprintf(&sb, "`%s` ", r.Recommendations[i])
-		case (i + 1) != len(r.Recommendations):
-			_, _ = fmt.Fprintf(&sb, "`%s`, ", r.Recommendations[i])
-		default:
-			_, _ = fmt.Fprintf(&sb, "and `%s` are recommended modules.", r.Recommendations[i])
-		}
-	}
-
-	if r.Reason == "" {
-		return sb.String()
-	}
-
-	// Add reason to message
-	if sb.Len() == 0 {
-		_, _ = fmt.Fprintf(&sb, "%s.", strings.TrimRight(r.Reason, "."))
-	} else {
-		_, _ = fmt.Fprintf(&sb, " %s.", strings.TrimRight(r.Reason, "."))
-	}
-
-	return sb.String()
-}
-
-// HasRecommendations returns true if the blocked package has
-// recommended modules.
-func (r *BlockedModule) HasRecommendations() bool {
+// HasRecommendations returns true if the blocked package has recommended modules.
+func (r *BlockedRule) HasRecommendations() bool {
 	if r == nil {
 		return false
 	}
@@ -126,62 +97,10 @@ func (r *BlockedModule) HasRecommendations() bool {
 	return len(r.Recommendations) > 0
 }
 
-// BlockedVersions a list of blocked modules by a version constraint.
-type BlockedVersions []map[string]BlockedVersion
-
-// Get returns the module names that are blocked.
-func (b BlockedVersions) Get() []string {
-	modules := make([]string, len(b))
-
-	for n := range b {
-		for module := range b[n] {
-			modules[n] = module
-			break
-		}
-	}
-
-	return modules
+func (r *BlockedRule) ruleMatchType() MatchType {
+	return r.MatchType
 }
 
-// GetBlockReason returns a block version if one is set for the provided linted module name.
-func (b BlockedVersions) GetBlockReason(lintedModuleName string) *BlockedVersion {
-	for _, blockedModule := range b {
-		for blockedModuleName, blockedVersion := range blockedModule {
-			if strings.TrimSpace(lintedModuleName) == strings.TrimSpace(blockedModuleName) {
-				return &blockedVersion
-			}
-		}
-	}
-
-	return nil
-}
-
-// BlockedModules a list of blocked modules.
-type BlockedModules []map[string]BlockedModule
-
-// Get returns the module names that are blocked.
-func (b BlockedModules) Get() []string {
-	modules := make([]string, len(b))
-
-	for n := range b {
-		for module := range b[n] {
-			modules[n] = module
-			break
-		}
-	}
-
-	return modules
-}
-
-// GetBlockReason returns a block module if one is set for the provided linted module name.
-func (b BlockedModules) GetBlockReason(lintedModuleName string) *BlockedModule {
-	for _, blockedModule := range b {
-		for blockedModuleName, blockedModule := range blockedModule {
-			if strings.TrimSpace(lintedModuleName) == strings.TrimSpace(blockedModuleName) {
-				return &blockedModule
-			}
-		}
-	}
-
-	return nil
+func (r *BlockedRule) ruleMatcher() Matcher { //nolint:ireturn
+	return r.Matcher
 }

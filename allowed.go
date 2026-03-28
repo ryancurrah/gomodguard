@@ -1,46 +1,49 @@
 package gomodguard
 
 import (
-	"slices"
-	"strings"
+	"fmt"
+
+	"github.com/Masterminds/semver/v3"
 )
 
-// Allowed is a list of modules and module
-// prefixes that are allowed to be used.
-type Allowed struct {
-	Modules  []string `yaml:"modules"`
-	Domains  []string `yaml:"domains"`
-	Prefixes []string `yaml:"prefixes"`
+// Allowed is a map of modules or prefixes that are allowed to be used.
+type Allowed map[string]AllowedRule
+
+// AllowedRule defines the options for an allowed module.
+type AllowedRule struct {
+	MatchType MatchType           `yaml:"match_type"`
+	Version   *semver.Constraints `yaml:"version"`
+	Matcher   Matcher             `yaml:"-"`
 }
 
-// IsAllowedModule returns true if the given module
-// name is in the allowed modules list.
-func (a *Allowed) IsAllowedModule(moduleName string) bool {
-	allowedModules := a.Modules
-
-	for i := range allowedModules {
-		if strings.TrimSpace(moduleName) == strings.TrimSpace(allowedModules[i]) {
-			return true
-		}
+// CheckVersion returns true if the module version matches the allowed constraint,
+// or if no version constraint is specified.
+func (r *AllowedRule) CheckVersion(moduleVersion string) (bool, error) {
+	if r.Version == nil {
+		return true, nil
 	}
 
-	return false
+	version, err := semver.NewVersion(moduleVersion)
+	if err != nil {
+		return false, err
+	}
+
+	return r.Version.Check(version), nil
 }
 
-// IsAllowedModulePrefix returns true if the given modules prefix is
-// in the allowed module prefixes list.
-func (a *Allowed) IsAllowedModulePrefix(moduleName string) bool {
-	allowedPrefixes := make([]string, 0, len(a.Prefixes)+len(a.Domains))
-	allowedPrefixes = append(allowedPrefixes, a.Prefixes...)
-	allowedPrefixes = append(allowedPrefixes, a.Domains...)
-	allowedPrefixes = slices.Compact(allowedPrefixes)
-
-	for i := range allowedPrefixes {
-		if strings.HasPrefix(strings.TrimSpace(strings.ToLower(moduleName)),
-			strings.TrimSpace(strings.ToLower(allowedPrefixes[i]))) {
-			return true
-		}
+// NotAllowedReason returns the reason why the module version is not allowed.
+func (r *AllowedRule) NotAllowedReason(moduleVersion string) string {
+	if r == nil || r.Version == nil {
+		return "the module is not in the allowed modules list."
 	}
 
-	return false
+	return fmt.Sprintf("version `%s` does not meet the allowed version constraint `%s`.", moduleVersion, r.Version)
+}
+
+func (r *AllowedRule) ruleMatchType() MatchType {
+	return r.MatchType
+}
+
+func (r *AllowedRule) ruleMatcher() Matcher { //nolint:ireturn
+	return r.Matcher
 }

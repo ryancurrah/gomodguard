@@ -2,6 +2,7 @@ package gomodguard
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"golang.org/x/mod/modfile"
@@ -23,10 +25,7 @@ const (
 )
 
 var (
-	blockReasonNotInAllowedList         = "import of package `%s` is blocked because the module is not in the allowed modules list."
-	blockReasonInBlockedList            = "import of package `%s` is blocked because the module is in the blocked modules list."
-	blockReasonHasLocalReplaceDirective = "import of package `%s` is blocked because the module has a local replace directive."
-	blockReasonInvalidVersionConstraint = "import of package `%s` is blocked because the version constraint is invalid."
+	blockReasonInBlockedList = "import of package `%s` is blocked because the module is in the blocked modules list."
 
 	// startsWithVersion is used to test when a string begins with the version identifier of a module,
 	// after having stripped the prefix base module name. IE "github.com/foo/bar/v2/baz" => "v2/baz"
@@ -34,10 +33,110 @@ var (
 	startsWithVersion = regexp.MustCompile(`^v[0-9]+`)
 )
 
+// ruleIndex provides deterministic, specificity-based rule matching.
+// Rules are evaluated in three tiers:
+//  1. Exact match — O(1) map lookup.
+//  2. Prefix match — longest matching prefix wins.
+//  3. Regex match — evaluated in alphabetical key order; first match wins.
+type ruleIndex struct {
+	exactLookup map[string]string  // trimmed module name -> original map key
+	prefixKeys  []string           // sorted by length desc, then alphabetically
+	regexKeys   []string           // sorted alphabetically
+	matchers    map[string]Matcher // key -> compiled matcher
+}
+
+// newRuleIndex categorises rule keys into exact, prefix, and regex tiers
+// and pre-sorts the prefix and regex tiers for deterministic evaluation.
+func newRuleIndex(keys []string, matchTypes map[string]MatchType, matchers map[string]Matcher) *ruleIndex {
+	idx := &ruleIndex{
+		exactLookup: make(map[string]string, len(keys)),
+		matchers:    matchers,
+	}
+
+	for _, k := range keys {
+		switch matchTypes[k] {
+		case ExactMatch:
+			idx.exactLookup[strings.TrimSpace(k)] = k
+		case PrefixMatch:
+			idx.prefixKeys = append(idx.prefixKeys, k)
+		case RegexMatch:
+			idx.regexKeys = append(idx.regexKeys, k)
+		default:
+			idx.exactLookup[strings.TrimSpace(k)] = k
+		}
+	}
+
+	// Longest prefix first for most-specific match.
+	slices.SortFunc(idx.prefixKeys, func(a, b string) int {
+		return cmp.Compare(len(b), len(a))
+	})
+
+	// Alphabetical order for deterministic regex evaluation.
+	slices.Sort(idx.regexKeys)
+
+	return idx
+}
+
+// bestMatch returns the key of the best-matching rule for moduleName,
+// following the tiered precedence: exact > longest prefix > first regex.
+func (idx *ruleIndex) bestMatch(moduleName string) (string, bool) {
+	trimmed := strings.TrimSpace(moduleName)
+
+	// Tier 1: exact match (O(1))
+	if key, ok := idx.exactLookup[trimmed]; ok {
+		return key, true
+	}
+
+	// Tier 2: longest prefix match
+	for _, key := range idx.prefixKeys {
+		if idx.matchers[key].Match(moduleName) {
+			return key, true
+		}
+	}
+
+	// Tier 3: first regex match (alphabetical order)
+	for _, key := range idx.regexKeys {
+		if idx.matchers[key].Match(moduleName) {
+			return key, true
+		}
+	}
+
+	return "", false
+}
+
 // Configuration of gomodguard allow and block lists.
 type Configuration struct {
 	Allowed Allowed `yaml:"allowed"`
 	Blocked Blocked `yaml:"blocked"`
+}
+
+// InitMatchers initializes matchers for the configuration rules.
+func (c *Configuration) InitMatchers() error {
+	if c.Allowed != nil {
+		for k, rule := range c.Allowed {
+			m, err := compileMatcher(rule.MatchType, k)
+			if err != nil {
+				return fmt.Errorf("failed compiling allowed matcher for '%s': %w", k, err)
+			}
+
+			rule.Matcher = m
+			c.Allowed[k] = rule
+		}
+	}
+
+	if c.Blocked != nil {
+		for k, rule := range c.Blocked {
+			m, err := compileMatcher(rule.MatchType, k)
+			if err != nil {
+				return fmt.Errorf("failed compiling blocked matcher for '%s': %w", k, err)
+			}
+
+			rule.Matcher = m
+			c.Blocked[k] = rule
+		}
+	}
+
+	return nil
 }
 
 // Processor processes Go files.
@@ -57,6 +156,10 @@ func NewProcessor(config *Configuration) (*Processor, error) {
 	modFile, err := modfile.Parse(goModFilename, goModFileBytes, nil)
 	if err != nil {
 		return nil, fmt.Errorf(errParsingGoModFile, goModFilename, err)
+	}
+
+	if err := config.InitMatchers(); err != nil {
+		return nil, err
 	}
 
 	p := &Processor{
@@ -91,81 +194,138 @@ func (p *Processor) ProcessFiles(filenames []string) (issues []Issue) {
 }
 
 // SetBlockedModules determines and sets which modules are blocked by reading
-// the go.mod file of the module that is being linted.
+// the go.mod file of the current module.
 //
-// It works by iterating over the dependant modules specified in the require
+// It works by iterating over the required modules specified in the require
 // directive, checking if the module prefix or full name is in the allowed list.
-func (p *Processor) SetBlockedModules() { //nolint:funlen
+//
+// Rules are evaluated using a layered strategy for deterministic results:
+//  1. Exact match — O(1) lookup; wins immediately.
+//  2. Prefix match — longest matching prefix wins.
+//  3. Regex match — evaluated in alphabetical key order; first match wins.
+func (p *Processor) SetBlockedModules() {
 	blockedModules := make(map[string][]string, len(p.Modfile.Require))
 	currentModuleName := p.Modfile.Module.Mod.Path
-	lintedModules := p.Modfile.Require
-	replacedModules := p.Modfile.Replace
+	requiredModules := p.Modfile.Require
 
-	for i := range lintedModules {
-		lintedModuleName := strings.TrimSpace(lintedModules[i].Mod.Path)
-		lintedModuleVersion := strings.TrimSpace(lintedModules[i].Mod.Version)
+	// Build tiered rule indices for blocked and allowed rules.
+	blockedIdx := buildRuleIndex(p.Config.Blocked)
+	allowedIdx := buildRuleIndex(p.Config.Allowed)
 
-		var isAllowed bool
+	for i := range requiredModules {
+		requiredModuleName := strings.TrimSpace(requiredModules[i].Mod.Path)
+		requiredModuleVersion := strings.TrimSpace(requiredModules[i].Mod.Version)
 
-		switch {
-		case len(p.Config.Allowed.Modules) == 0 && len(p.Config.Allowed.Prefixes) == 0 && len(p.Config.Allowed.Domains) == 0:
-			isAllowed = true
-		case p.Config.Allowed.IsAllowedModulePrefix(lintedModuleName):
-			isAllowed = true
-		case p.Config.Allowed.IsAllowedModule(lintedModuleName):
-			isAllowed = true
-		default:
-			isAllowed = false
+		var matchedBlockRule *BlockedRule
+
+		// Check against blocked rules first (exact > longest prefix > first regex)
+		if key, ok := blockedIdx.bestMatch(requiredModuleName); ok {
+			rule := p.Config.Blocked[key] // copy
+			matchedBlockRule = &rule
 		}
 
-		blockModuleReason := p.Config.Blocked.Modules.GetBlockReason(lintedModuleName)
-		blockVersionReason := p.Config.Blocked.Versions.GetBlockReason(lintedModuleName)
+		if matchedBlockRule != nil && matchedBlockRule.IsCurrentModuleARecommendation(currentModuleName) {
+			// The current module is a recommended alternative for this blocked module, allowing it.
+			matchedBlockRule = nil
+		}
 
-		if !isAllowed && blockModuleReason == nil && blockVersionReason == nil {
-			blockedModules[lintedModuleName] = append(blockedModules[lintedModuleName], blockReasonNotInAllowedList)
+		if matchedBlockRule != nil {
+			isVersBlocked, err := matchedBlockRule.CheckVersion(requiredModuleVersion)
+			if err != nil {
+				// NOTE: Unreachable via real go.mod files; modfile.Parse rejects invalid versions
+				// earlier. Left untested by design as this branch cannot be triggered.
+				blockedModules[requiredModuleName] = append(blockedModules[requiredModuleName],
+					fmt.Sprintf("%s unable to parse version `%s`: %s",
+						blockReasonInBlockedList, requiredModuleVersion, err,
+					),
+				)
+
+				continue
+			}
+
+			if !isVersBlocked {
+				// Doesn't match the blocked version constraint, so we let it pass the block check
+				matchedBlockRule = nil
+			}
+		}
+
+		// If it's blocked, record it and move to next
+		if matchedBlockRule != nil {
+			blockedModules[requiredModuleName] = append(blockedModules[requiredModuleName],
+				fmt.Sprintf("%s %s", blockReasonInBlockedList,
+					matchedBlockRule.BlockReason(requiredModuleVersion),
+				),
+			)
+
 			continue
 		}
 
-		if blockModuleReason != nil && !blockModuleReason.IsCurrentModuleARecommendation(currentModuleName) {
-			blockedModules[lintedModuleName] = append(blockedModules[lintedModuleName],
-				fmt.Sprintf("%s %s", blockReasonInBlockedList, blockModuleReason.Message()))
+		// If no allowed list is specified, default mapping is to allow all
+		if len(p.Config.Allowed) == 0 {
+			continue
 		}
 
-		if blockVersionReason != nil {
-			isVersBlocked, err := blockVersionReason.IsLintedModuleVersionBlocked(lintedModuleVersion)
+		isAllowed := false
 
-			var msg string
+		var matchedButWrongVersion *AllowedRule
 
-			switch err {
-			case nil:
-				msg = fmt.Sprintf("%s %s", blockReasonInBlockedList, blockVersionReason.Message(lintedModuleVersion))
+		if key, ok := allowedIdx.bestMatch(requiredModuleName); ok {
+			rule := p.Config.Allowed[key] // copy
+
+			ok, err := rule.CheckVersion(requiredModuleVersion)
+
+			switch {
+			case err != nil:
+				// NOTE: Unreachable via real go.mod files; modfile.Parse rejects invalid versions
+				// earlier. Left untested by design as this branch cannot be triggered.
+				blockedModules[requiredModuleName] = append(blockedModules[requiredModuleName],
+					fmt.Sprintf("import of package `%%s` is blocked because the module version `%s` could not be parsed: %s",
+						requiredModuleVersion, err,
+					),
+				)
+
+				isAllowed = true // skip the generic "not allowed" message below
+			case ok:
+				isAllowed = true
 			default:
-				msg = fmt.Sprintf("%s %s", blockReasonInvalidVersionConstraint, err)
-			}
-
-			if isVersBlocked {
-				blockedModules[lintedModuleName] = append(blockedModules[lintedModuleName], msg)
+				matchedButWrongVersion = &rule
 			}
 		}
-	}
 
-	// Replace directives with local paths are blocked.
-	// Filesystem paths found in "replace" directives are represented by a path with an empty version.
-	// https://github.com/golang/mod/blob/bc388b264a244501debfb9caea700c6dcaff10e2/module/module.go#L122-L124
-	if p.Config.Blocked.LocalReplaceDirectives {
-		for i := range replacedModules {
-			replacedModuleOldName := strings.TrimSpace(replacedModules[i].Old.Path)
-			replacedModuleNewName := strings.TrimSpace(replacedModules[i].New.Path)
-			replacedModuleNewVersion := strings.TrimSpace(replacedModules[i].New.Version)
-
-			if replacedModuleNewName != "" && replacedModuleNewVersion == "" {
-				blockedModules[replacedModuleOldName] = append(blockedModules[replacedModuleOldName],
-					blockReasonHasLocalReplaceDirective)
-			}
+		if !isAllowed {
+			blockedModules[requiredModuleName] = append(blockedModules[requiredModuleName],
+				fmt.Sprintf("import of package `%%s` is blocked because %s", matchedButWrongVersion.NotAllowedReason(requiredModuleVersion)))
 		}
 	}
 
 	p.blockedModulesFromModFile = blockedModules
+}
+
+// ruleInfo is implemented by AllowedRule and BlockedRule to extract the
+// fields needed to build a ruleIndex.
+type ruleInfo interface {
+	ruleMatchType() MatchType
+	ruleMatcher() Matcher
+}
+
+// buildRuleIndex constructs a ruleIndex from any map whose values satisfy ruleInfo.
+func buildRuleIndex[V any, P interface {
+	*V
+	ruleInfo
+}](rules map[string]V) *ruleIndex {
+	keys := make([]string, 0, len(rules))
+	matchTypes := make(map[string]MatchType, len(rules))
+	matchers := make(map[string]Matcher, len(rules))
+
+	for k, v := range rules {
+		keys = append(keys, k)
+
+		p := P(&v)
+		matchTypes[k] = p.ruleMatchType()
+		matchers[k] = p.ruleMatcher()
+	}
+
+	return newRuleIndex(keys, matchTypes, matchers)
 }
 
 // process file imports and add lint error if blocked package is imported.

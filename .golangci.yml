@@ -5,6 +5,7 @@ linters:
   disable:
     - lll
     - gomodguard
+    - gomoddirectives
     - gochecknoglobals
     - paralleltest
     - varnamelen
@@ -27,4 +28,3 @@ linters:
       rules:
         - name: package-comments
           disabled: true
- 
