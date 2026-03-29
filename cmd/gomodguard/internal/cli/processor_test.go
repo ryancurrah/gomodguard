@@ -80,7 +80,7 @@ func TestProcessorYAMLConfig(t *testing.T) { //nolint:funlen
 		"allowed version - invalid constraint is caught at parse time": {
 			exampleDir:   examplesDir + "allowedversion",
 			wantParseErr: true,
-			invalidYAML:  "allowed:\n  github.com/Masterminds/semver/v3:\n    version: not-a-valid-constraint\n",
+			invalidYAML:  "allowed:\n  - module: github.com/Masterminds/semver/v3\n    version: not-a-valid-constraint\n",
 		},
 		"empty allow list - allows all modules": {
 			exampleDir: examplesDir + "emptyallowlist",

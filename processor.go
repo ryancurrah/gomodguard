@@ -114,28 +114,22 @@ type Configuration struct {
 
 // InitMatchers initializes matchers for the configuration rules.
 func (c *Configuration) InitMatchers() error {
-	if c.Allowed != nil {
-		for k, rule := range c.Allowed {
-			m, err := compileMatcher(rule.MatchType, k)
-			if err != nil {
-				return fmt.Errorf("failed compiling allowed matcher for '%s': %w", k, err)
-			}
-
-			rule.Matcher = m
-			c.Allowed[k] = rule
+	for i := range c.Allowed {
+		m, err := compileMatcher(c.Allowed[i].MatchType, c.Allowed[i].Module)
+		if err != nil {
+			return fmt.Errorf("failed compiling allowed matcher for '%s': %w", c.Allowed[i].Module, err)
 		}
+
+		c.Allowed[i].Matcher = m
 	}
 
-	if c.Blocked != nil {
-		for k, rule := range c.Blocked {
-			m, err := compileMatcher(rule.MatchType, k)
-			if err != nil {
-				return fmt.Errorf("failed compiling blocked matcher for '%s': %w", k, err)
-			}
-
-			rule.Matcher = m
-			c.Blocked[k] = rule
+	for i := range c.Blocked {
+		m, err := compileMatcher(c.Blocked[i].MatchType, c.Blocked[i].Module)
+		if err != nil {
+			return fmt.Errorf("failed compiling blocked matcher for '%s': %w", c.Blocked[i].Module, err)
 		}
+
+		c.Blocked[i].Matcher = m
 	}
 
 	return nil
@@ -211,18 +205,28 @@ func (p *Processor) SetBlockedModules() { //nolint:gocognit // Ack this is a lon
 	requiredModules := p.Modfile.Require
 
 	// Build tiered rule indices for blocked and allowed rules.
-	blockedIdx := buildRuleIndex(p.Config.Blocked)
-	allowedIdx := buildRuleIndex(p.Config.Allowed)
+	blockedIdx, blockedLookup := buildRuleIndex(
+		p.Config.Blocked,
+		func(r BlockedModule) string    { return r.Module },
+		func(r BlockedModule) MatchType { return r.MatchType },
+		func(r BlockedModule) Matcher   { return r.Matcher },
+	)
+	allowedIdx, allowedLookup := buildRuleIndex(
+		p.Config.Allowed,
+		func(r AllowedModule) string    { return r.Module },
+		func(r AllowedModule) MatchType { return r.MatchType },
+		func(r AllowedModule) Matcher   { return r.Matcher },
+	)
 
 	for i := range requiredModules {
 		requiredModuleName := strings.TrimSpace(requiredModules[i].Mod.Path)
 		requiredModuleVersion := strings.TrimSpace(requiredModules[i].Mod.Version)
 
-		var matchedBlockRule *BlockedRule
+		var matchedBlockRule *BlockedModule
 
 		// Check against blocked rules first (exact > longest prefix > first regex)
 		if key, ok := blockedIdx.bestMatch(requiredModuleName); ok {
-			rule := p.Config.Blocked[key] // copy
+			rule := blockedLookup[key] // copy
 			matchedBlockRule = &rule
 		}
 
@@ -269,10 +273,10 @@ func (p *Processor) SetBlockedModules() { //nolint:gocognit // Ack this is a lon
 
 		isAllowed := false
 
-		var matchedButWrongVersion *AllowedRule
+		var matchedButWrongVersion *AllowedModule
 
 		if key, ok := allowedIdx.bestMatch(requiredModuleName); ok {
-			rule := p.Config.Allowed[key] // copy
+			rule := allowedLookup[key] // copy
 
 			ok, err := rule.CheckVersion(requiredModuleVersion)
 
@@ -316,31 +320,29 @@ func (p *Processor) SetBlockedModules() { //nolint:gocognit // Ack this is a lon
 	p.blockedModulesFromModFile = blockedModules
 }
 
-// ruleInfo is implemented by AllowedRule and BlockedRule to extract the
-// fields needed to build a ruleIndex.
-type ruleInfo interface {
-	ruleMatchType() MatchType
-	ruleMatcher() Matcher
-}
-
-// buildRuleIndex constructs a ruleIndex from any map whose values satisfy ruleInfo.
-func buildRuleIndex[V any, P interface {
-	*V
-	ruleInfo
-}](rules map[string]V) *ruleIndex {
+// buildRuleIndex constructs a ruleIndex and a key→rule lookup from any slice of rules.
+// The three accessor functions extract the module name, match type, and compiled matcher
+// from each rule, keeping this function independent of the concrete rule type.
+func buildRuleIndex[R any](
+	rules []R,
+	moduleFn func(R) string,
+	matchTypeFn func(R) MatchType,
+	matcherFn func(R) Matcher,
+) (*ruleIndex, map[string]R) {
 	keys := make([]string, 0, len(rules))
 	matchTypes := make(map[string]MatchType, len(rules))
 	matchers := make(map[string]Matcher, len(rules))
+	lookup := make(map[string]R, len(rules))
 
-	for k, v := range rules {
-		keys = append(keys, k)
-
-		p := P(&v)
-		matchTypes[k] = p.ruleMatchType()
-		matchers[k] = p.ruleMatcher()
+	for _, r := range rules {
+		mod := moduleFn(r)
+		keys = append(keys, mod)
+		matchTypes[mod] = matchTypeFn(r)
+		matchers[mod] = matcherFn(r)
+		lookup[mod] = r
 	}
 
-	return newRuleIndex(keys, matchTypes, matchers)
+	return newRuleIndex(keys, matchTypes, matchers), lookup
 }
 
 // process file imports and add lint error if blocked package is imported.

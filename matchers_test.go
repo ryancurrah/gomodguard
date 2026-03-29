@@ -79,25 +79,3 @@ func TestMatchers(t *testing.T) {
 	}
 }
 
-func TestMatchTypePrecedence(t *testing.T) {
-	tests := map[string]struct {
-		matchType      gomodguard.MatchType
-		wantPrecedence int
-	}{
-		"exact":   {gomodguard.ExactMatch, 0},
-		"prefix":  {gomodguard.PrefixMatch, 1},
-		"regex":   {gomodguard.RegexMatch, 2},
-		"default": {"", 0},
-		"unknown": {"unknown", 0},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, tc.wantPrecedence, tc.matchType.Precedence())
-		})
-	}
-
-	// Verify ordering: exact < prefix < regex
-	assert.Less(t, gomodguard.ExactMatch.Precedence(), gomodguard.PrefixMatch.Precedence())
-	assert.Less(t, gomodguard.PrefixMatch.Precedence(), gomodguard.RegexMatch.Precedence())
-}

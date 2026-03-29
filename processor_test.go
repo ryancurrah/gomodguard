@@ -23,7 +23,7 @@ func mustConstraint(t *testing.T, c string) *semver.Constraints {
 func TestProcessorNewProcessor(t *testing.T) {
 	_, err := gomodguard.NewProcessor(&gomodguard.Configuration{
 		Allowed: gomodguard.Allowed{
-			"github.com/foo/bar": gomodguard.AllowedRule{},
+			{Module: "github.com/foo/bar"},
 		},
 	})
 	require.NoError(t, err)
@@ -32,13 +32,14 @@ func TestProcessorNewProcessor(t *testing.T) {
 func TestProcessorNewProcessorUnknownMatchType(t *testing.T) {
 	_, err := gomodguard.NewProcessor(&gomodguard.Configuration{
 		Blocked: gomodguard.Blocked{
-			"github.com/foo/bar": gomodguard.BlockedRule{
+			{
+				Module:    "github.com/foo/bar",
 				MatchType: "prefx",
 			},
 		},
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown match_type")
+	assert.Contains(t, err.Error(), "unknown match-type")
 }
 
 func processFiles(t *testing.T, config *gomodguard.Configuration) []string {
@@ -71,11 +72,23 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 		notWantReasons []string
 		wantEmpty      bool
 	}{
+		"not in allowed list - module is blocked": {
+			exampleDir: "examples/alloptions",
+			config: &gomodguard.Configuration{
+				Allowed: gomodguard.Allowed{
+					{Module: "github.com/some/other/module"},
+				},
+			},
+			wantReasons: []string{
+				"blocked_example.go:8:1 import of package `github.com/uudashr/go-module` is blocked because the module is not in the allowed modules list.",
+			},
+		},
 		"current module is a recommendation - not blocked": {
 			exampleDir: "examples/alloptions",
 			config: &gomodguard.Configuration{
 				Blocked: gomodguard.Blocked{
-					"github.com/gofrs/uuid": gomodguard.BlockedRule{
+					{
+						Module:          "github.com/gofrs/uuid",
 						Recommendations: []string{"github.com/ryancurrah/gomodguard/examples/alloptions"},
 						Reason:          "should be skipped because current module is a recommendation.",
 					},
@@ -87,7 +100,8 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 			exampleDir: "examples/allowedversion",
 			config: &gomodguard.Configuration{
 				Allowed: gomodguard.Allowed{
-					"github.com/Masterminds/semver/v3": gomodguard.AllowedRule{
+					{
+						Module:  "github.com/Masterminds/semver/v3",
 						Version: mustConstraint(t, ">= 3.2.0"),
 					},
 				},
@@ -101,7 +115,8 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 			exampleDir: "examples/allowedversion",
 			config: &gomodguard.Configuration{
 				Allowed: gomodguard.Allowed{
-					"github.com/Masterminds/semver/v3": gomodguard.AllowedRule{
+					{
+						Module:  "github.com/Masterminds/semver/v3",
 						Version: mustConstraint(t, ">= 3.0.0"),
 					},
 				},
@@ -112,7 +127,8 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 			exampleDir: "examples/regexversion",
 			config: &gomodguard.Configuration{
 				Blocked: gomodguard.Blocked{
-					"golang\\.org/x/.*": gomodguard.BlockedRule{
+					{
+						Module:    "golang\\.org/x/.*",
 						MatchType: gomodguard.RegexMatch,
 						Version:   mustConstraint(t, "<= 0.15.0"),
 						Reason:    "testing regex blocking with version constraint.",
@@ -126,12 +142,14 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 			config: &gomodguard.Configuration{
 				Blocked: gomodguard.Blocked{
 					// Regex rule matches the same module but with a different reason
-					"github\\.com/uudashr/.*": gomodguard.BlockedRule{
+					{
+						Module:    "github\\.com/uudashr/.*",
 						MatchType: gomodguard.RegexMatch,
 						Reason:    "regex catch-all should NOT be selected.",
 					},
 					// Exact rule should win due to higher precedence
-					"github.com/uudashr/go-module": gomodguard.BlockedRule{
+					{
+						Module:          "github.com/uudashr/go-module",
 						MatchType:       gomodguard.ExactMatch,
 						Recommendations: []string{"golang.org/x/mod"},
 						Reason:          "exact rule should be selected.",
@@ -152,12 +170,14 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 			config: &gomodguard.Configuration{
 				Blocked: gomodguard.Blocked{
 					// Regex rule matches the same module
-					"github\\.com/uudashr/.*": gomodguard.BlockedRule{
+					{
+						Module:    "github\\.com/uudashr/.*",
 						MatchType: gomodguard.RegexMatch,
 						Reason:    "regex catch-all should NOT be selected.",
 					},
 					// Prefix rule should win over regex
-					"github.com/uudashr/": gomodguard.BlockedRule{
+					{
+						Module:    "github.com/uudashr/",
 						MatchType: gomodguard.PrefixMatch,
 						Reason:    "prefix rule should be selected.",
 					},
@@ -191,7 +211,8 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 			exampleDir: "examples/majorversion",
 			config: &gomodguard.Configuration{
 				Blocked: gomodguard.Blocked{
-					"github.com/gofrs/uuid": gomodguard.BlockedRule{
+					{
+						Module:          "github.com/gofrs/uuid",
 						Recommendations: []string{"github.com/gofrs/uuid/v5"},
 						Reason:          "testing that a major version module is not blocked by a rule targeting the base module.",
 					},
@@ -211,17 +232,26 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 			},
 			wantEmpty: true,
 		},
+		"local replace directive - not blocked when replace has a version (module-to-module replace)": {
+			exampleDir: "examples/versionedreplace",
+			config: &gomodguard.Configuration{
+				LocalReplaceDirectives: true,
+			},
+			wantEmpty: true,
+		},
 		"precedence - longest prefix wins over shorter prefix": {
 			exampleDir: "examples/alloptions",
 			config: &gomodguard.Configuration{
 				Blocked: gomodguard.Blocked{
 					// Short prefix matches broadly
-					"github.com/uudashr": gomodguard.BlockedRule{
+					{
+						Module:    "github.com/uudashr",
 						MatchType: gomodguard.PrefixMatch,
 						Reason:    "short prefix should NOT be selected.",
 					},
 					// Longer prefix is more specific and should win
-					"github.com/uudashr/go-module": gomodguard.BlockedRule{
+					{
+						Module:          "github.com/uudashr/go-module",
 						MatchType:       gomodguard.PrefixMatch,
 						Recommendations: []string{"golang.org/x/mod"},
 						Reason:          "longest prefix should be selected.",

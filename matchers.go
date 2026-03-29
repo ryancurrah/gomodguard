@@ -55,21 +55,6 @@ func (m RegexMatcher) Match(moduleName string) bool {
 	return m.Regex.MatchString(strings.TrimSpace(moduleName))
 }
 
-// Precedence returns the matching priority of the MatchType.
-// Lower values indicate higher precedence: exact (0) > prefix (1) > regex (2).
-func (m MatchType) Precedence() int {
-	switch m {
-	case ExactMatch:
-		return 0
-	case PrefixMatch:
-		return 1
-	case RegexMatch:
-		return 2
-	default:
-		return 0
-	}
-}
-
 // compileMatcher creates a Matcher based on the match type and pattern.
 //
 //nolint:ireturn // This factory intentionally returns the Matcher interface.
@@ -87,6 +72,6 @@ func compileMatcher(matchType MatchType, pattern string) (Matcher, error) {
 	case ExactMatch, "":
 		return ExactMatcher{Target: strings.TrimSpace(pattern)}, nil
 	default:
-		return nil, fmt.Errorf("unknown match_type %q for pattern %q", matchType, pattern)
+		return nil, fmt.Errorf("unknown match-type %q for pattern %q", matchType, pattern)
 	}
 }

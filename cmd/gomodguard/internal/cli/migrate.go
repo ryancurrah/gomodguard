@@ -52,36 +52,48 @@ func MigrateConfig(filename string) int {
 	}
 
 	v2 := gomodguard.Configuration{
-		Allowed:                make(gomodguard.Allowed),
-		Blocked:                make(gomodguard.Blocked),
 		LocalReplaceDirectives: v1.Blocked.LocalReplaceDirectives,
 	}
 
 	for _, mod := range v1.Allowed.Modules {
-		v2.Allowed[mod] = gomodguard.AllowedRule{MatchType: gomodguard.ExactMatch}
+		v2.Allowed = append(v2.Allowed, gomodguard.AllowedModule{
+			Module:    mod,
+			MatchType: gomodguard.ExactMatch,
+		})
 	}
 
 	for _, pref := range v1.Allowed.Prefixes {
-		v2.Allowed[pref] = gomodguard.AllowedRule{MatchType: gomodguard.PrefixMatch}
+		v2.Allowed = append(v2.Allowed, gomodguard.AllowedModule{
+			Module:    pref,
+			MatchType: gomodguard.PrefixMatch,
+		})
 	}
 
 	for _, dom := range v1.Allowed.Domains {
-		v2.Allowed[dom] = gomodguard.AllowedRule{MatchType: gomodguard.PrefixMatch}
+		v2.Allowed = append(v2.Allowed, gomodguard.AllowedModule{
+			Module:    dom,
+			MatchType: gomodguard.PrefixMatch,
+		})
 	}
+
+	// Build a temporary map to merge modules and versions by module name.
+	blockedIndex := make(map[string]int)
 
 	for _, modMap := range v1.Blocked.Modules {
 		for modName, bm := range modMap {
-			rule := v2.Blocked[modName]
-			rule.MatchType = gomodguard.ExactMatch
-			rule.Recommendations = bm.Recommendations
-			rule.Reason = bm.Reason
-			v2.Blocked[modName] = rule
+			v2.Blocked = append(v2.Blocked, gomodguard.BlockedModule{
+				Module:          modName,
+				MatchType:       gomodguard.ExactMatch,
+				Recommendations: bm.Recommendations,
+				Reason:          bm.Reason,
+			})
+			blockedIndex[modName] = len(v2.Blocked) - 1
 		}
 	}
 
 	for _, versMap := range v1.Blocked.Versions {
 		for modName, bv := range versMap {
-			rule := v2.Blocked[modName]
+			var constraint *semver.Constraints
 
 			if bv.Version != "" {
 				c, err := semver.NewConstraint(bv.Version)
@@ -90,24 +102,28 @@ func MigrateConfig(filename string) int {
 					return 1
 				}
 
-				rule.Version = c
+				constraint = c
 			}
 
-			if bv.Reason != "" {
-				rule.Reason = bv.Reason
-			}
+			if idx, ok := blockedIndex[modName]; ok {
+				// Merge version info into existing entry.
+				entry := v2.Blocked[idx]
+				entry.Version = constraint
 
-			rule.MatchType = gomodguard.ExactMatch
-			v2.Blocked[modName] = rule
+				if bv.Reason != "" {
+					entry.Reason = bv.Reason
+				}
+
+				v2.Blocked[idx] = entry
+			} else {
+				v2.Blocked = append(v2.Blocked, gomodguard.BlockedModule{
+					Module:    modName,
+					MatchType: gomodguard.ExactMatch,
+					Version:   constraint,
+					Reason:    bv.Reason,
+				})
+			}
 		}
-	}
-
-	if len(v2.Allowed) == 0 {
-		v2.Allowed = nil
-	}
-
-	if len(v2.Blocked) == 0 {
-		v2.Blocked = nil
 	}
 
 	out, err := yaml.Marshal(v2)
