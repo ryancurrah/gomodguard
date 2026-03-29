@@ -39,30 +39,30 @@ Results can be exported to different report formats. Which can be imported into 
 # When this section is non-empty, any module not matched by an entry is blocked.
 # When omitted entirely, all modules are allowed except those in the blocked list.
 allowed:
-  # Exact match (default when match_type is omitted).
-  go.yaml.in/yaml/v4:
-  github.com/go-xmlfmt/xmlfmt:
+  # Exact match (default when match-type is omitted).
+  - module: go.yaml.in/yaml/v4
+  - module: github.com/go-xmlfmt/xmlfmt
 
   # version constrains which versions of the module are allowed.
   # Uses semver constraint syntax (e.g. ">= 1.0.0", "~1.2", "== 2.5.0").
-  github.com/confluentinc/confluent-kafka-go/v2:
+  - module: github.com/confluentinc/confluent-kafka-go/v2
     version: "== 2.5.0"
 
-  # match_type controls how the key is matched against module paths.
+  # match-type controls how the module is matched against module paths.
   # Options: exact (default), prefix, regex
-  github.com/kubernetes:
-    match_type: prefix
-  github.com/apache/arrow-go:
-    match_type: prefix
-  "github.com/somecompany/.*":
-    match_type: regex
+  - module: github.com/kubernetes
+    match-type: prefix
+  - module: github.com/apache/arrow-go
+    match-type: prefix
+  - module: "github.com/somecompany/.*"
+    match-type: regex
 
 # blocked defines modules that are not permitted as direct dependencies.
 blocked:
-  github.com/uudashr/go-module:
-    # match_type controls how the key is matched against module paths.
+  - module: github.com/uudashr/go-module
+    # match-type controls how the module is matched against module paths.
     # Options: exact (default), prefix, regex
-    match_type: exact
+    match-type: exact
 
     # recommendations lists alternative modules to suggest in the lint error.
     recommendations:
@@ -71,18 +71,18 @@ blocked:
     # reason is a human-readable explanation appended to the lint error.
     reason: "`mod` is the official go.mod parser library."
 
-  github.com/mitchellh/go-homedir:
+  - module: github.com/mitchellh/go-homedir
     # version constrains which versions of the module are blocked.
     # Uses semver constraint syntax. When omitted, all versions are blocked.
     version: "<= 1.1.0"
     reason: "old versions have a known bug."
 
-  "github.com/badcompany/.*":
-    match_type: regex
+  - module: "github.com/badcompany/.*"
+    match-type: regex
     reason: "No badcompany packages are permitted."
 
-# Blocks 'replace' directives using local filesystem paths to prevent 
-# accidental commits of dev overrides. Sibling modules in multi-module 
+# Blocks 'replace' directives using local filesystem paths to prevent
+# accidental commits of dev overrides. Sibling modules in multi-module
 # repos are automatically detected and permitted.
 local_replace_directives: true
 ```
@@ -93,15 +93,16 @@ local_replace_directives: true
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `allowed` | map | *(none)* | Modules that are permitted. When non-empty, anything not matched is blocked. |
-| `blocked` | map | *(none)* | Modules that are explicitly blocked. |
+| `allowed` | list | *(none)* | Modules that are permitted. When non-empty, anything not matched is blocked. |
+| `blocked` | list | *(none)* | Modules that are explicitly blocked. |
 | `local_replace_directives` | bool | `false` | Block any module whose `replace` directive points to a local filesystem path. Multi-module repo aware: sibling modules whose replacement path contains a matching `go.mod` are not blocked. |
 
-#### `allowed` / `blocked` rule fields
+#### `allowed` / `blocked` entry fields
 
 | Field | Type | Description |
 |---|---|---|
-| `match_type` | `exact` \| `prefix` \| `regex` | How the rule key is matched against a module path. Defaults to `exact`. |
+| `module` | string | The module path to match against. |
+| `match-type` | `exact` \| `prefix` \| `regex` | How `module` is matched against dependency paths. Defaults to `exact`. |
 | `version` | semver constraint string | Restricts the rule to specific versions (e.g. `<= 1.2.0`, `>= 2.0.0`). When omitted, all versions match. |
 | `recommendations` | list of module paths | *(blocked only)* Alternative modules to suggest in the lint error. If the module being linted is itself in this list, the block is skipped. |
 | `reason` | string | *(blocked only)* Human-readable explanation appended to the lint error. |

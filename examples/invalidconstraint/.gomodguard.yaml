@@ -1,4 +1,4 @@
 blocked:
-    github.com/gin-gonic/gin:
-        version: "invalid-constraint"
-        reason: "testing invalid constraint."
+  - module: github.com/gin-gonic/gin
+    version: "invalid-constraint"
+    reason: "testing invalid constraint."

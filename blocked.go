@@ -7,12 +7,13 @@ import (
 	"github.com/Masterminds/semver/v3"
 )
 
-// Blocked is a map of modules that are blocked and not to be used.
-type Blocked map[string]BlockedRule
+// Blocked is a list of modules that are blocked and not to be used.
+type Blocked []BlockedModule
 
-// BlockedRule represents a rule for a blocked module.
-type BlockedRule struct {
-	MatchType       MatchType           `yaml:"match_type"`
+// BlockedModule is a single entry in the blocked list.
+type BlockedModule struct {
+	Module          string              `yaml:"module"`
+	MatchType       MatchType           `yaml:"match-type"`
 	Recommendations []string            `yaml:"recommendations"`
 	Reason          string              `yaml:"reason"`
 	Version         *semver.Constraints `yaml:"version"`
@@ -21,7 +22,7 @@ type BlockedRule struct {
 
 // CheckVersion returns true if the module version matches the blocked constraint.
 // If no version constraint is specified, all versions are considered blocked.
-func (r *BlockedRule) CheckVersion(moduleVersion string) (bool, error) {
+func (r *BlockedModule) CheckVersion(moduleVersion string) (bool, error) {
 	if r.Version == nil {
 		return true, nil
 	}
@@ -35,7 +36,7 @@ func (r *BlockedRule) CheckVersion(moduleVersion string) (bool, error) {
 }
 
 // BlockReason returns the reason why the module or version is blocked.
-func (r *BlockedRule) BlockReason(currentModuleVersion string) string {
+func (r *BlockedModule) BlockReason(currentModuleVersion string) string {
 	var sb strings.Builder
 
 	if r.Version != nil {
@@ -74,7 +75,7 @@ func (r *BlockedRule) BlockReason(currentModuleVersion string) string {
 }
 
 // IsCurrentModuleARecommendation returns true if the current module is in the Recommendations list.
-func (r *BlockedRule) IsCurrentModuleARecommendation(currentModuleName string) bool {
+func (r *BlockedModule) IsCurrentModuleARecommendation(currentModuleName string) bool {
 	if r == nil {
 		return false
 	}
@@ -89,18 +90,10 @@ func (r *BlockedRule) IsCurrentModuleARecommendation(currentModuleName string) b
 }
 
 // HasRecommendations returns true if the blocked package has recommended modules.
-func (r *BlockedRule) HasRecommendations() bool {
+func (r *BlockedModule) HasRecommendations() bool {
 	if r == nil {
 		return false
 	}
 
 	return len(r.Recommendations) > 0
-}
-
-func (r *BlockedRule) ruleMatchType() MatchType {
-	return r.MatchType
-}
-
-func (r *BlockedRule) ruleMatcher() Matcher { //nolint:ireturn
-	return r.Matcher
 }

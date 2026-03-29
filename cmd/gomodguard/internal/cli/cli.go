@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"maps"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -114,8 +113,21 @@ func Run() int {
 		logger.Fatalf("error: %s", err)
 	}
 
-	logger.Printf("info: allowed modules, %+v", slices.Sorted(maps.Keys(config.Allowed)))
-	logger.Printf("info: blocked modules, %+v", slices.Sorted(maps.Keys(config.Blocked)))
+	allowedModuleNames := make([]string, len(config.Allowed))
+	for i, m := range config.Allowed {
+		allowedModuleNames[i] = m.Module
+	}
+
+	blockedModuleNames := make([]string, len(config.Blocked))
+	for i, m := range config.Blocked {
+		blockedModuleNames[i] = m.Module
+	}
+
+	slices.Sort(allowedModuleNames)
+	slices.Sort(blockedModuleNames)
+
+	logger.Printf("info: allowed modules, %+v", allowedModuleNames)
+	logger.Printf("info: blocked modules, %+v", blockedModuleNames)
 
 	results := processor.ProcessFiles(filteredFiles)
 

@@ -1,5 +1,5 @@
 blocked:
-  "golang\\.org/x/.*":
-    match_type: regex
+  - module: "golang\\.org/x/.*"
+    match-type: regex
     version: "<= 0.16.0"
     reason: "testing regex blocking with version constraint."
