@@ -201,7 +201,7 @@ Resulting checkstyle file
 ## Install
 
 ```
-go install github.com/ryancurrah/gomodguard/v2/cmd/gomodguard@latest
+go install github.com/ryancurrah/gomodguard/cmd/gomodguard/v2@latest
 ```
 
 ## Develop
@@ -211,6 +211,8 @@ git clone https://github.com/ryancurrah/gomodguard.git && cd gomodguard/cmd/gomo
 
 go build -o gomodguard main.go
 ```
+
+The repository is a multi-module workspace: the library lives at the root and the CLI lives under `cmd/gomodguard`. A `go.work` file at the repo root wires them together so local CLI builds pick up local library changes without needing a `replace` directive in `cmd/gomodguard/go.mod`.
 
 ## License
 
