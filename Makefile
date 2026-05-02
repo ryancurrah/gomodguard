@@ -9,6 +9,11 @@ lint:
 	golangci-lint run ./...
 	cd cmd/gomodguard && golangci-lint run ./...
 
+.PHONY: tidy
+tidy:
+	go mod tidy
+	cd cmd/gomodguard && go mod tidy
+
 .PHONY: build
 build:
 	cd cmd/gomodguard && go build -o "$$(go env GOPATH)/bin/gomodguard" main.go
@@ -47,11 +52,20 @@ clean:
 
 .PHONY: tag
 tag:
-	@current=$$(git tag --sort=-v:refname --list 'v*' | head -n1 || echo "none"); \
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "error: working tree not clean"; exit 1; \
+	fi; \
+	current=$$(git tag --sort=-v:refname --list 'v*' | head -n1 || echo "none"); \
 	read -p "Current version: $$current. Enter new version: " version; \
+	if [ -z "$$version" ]; then echo "error: version required"; exit 1; fi; \
+	branch=$$(git branch --show-current); \
 	git tag "$$version" && \
+	git push origin "$$version" && \
+	(cd cmd/gomodguard && GOWORK=off go get "github.com/ryancurrah/gomodguard/v2@$$version" && GOWORK=off go mod tidy) && \
+	git add cmd/gomodguard/go.mod cmd/gomodguard/go.sum && \
+	git commit -m "chore: bump library to $$version" && \
 	git tag "cmd/gomodguard/$$version" && \
-	git push origin "$$version" "cmd/gomodguard/$$version"
+	git push origin "$$branch" "cmd/gomodguard/$$version"
 
 .PHONY: install-mac-tools
 install-tools-mac:
