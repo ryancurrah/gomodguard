@@ -58,14 +58,25 @@ tag:
 	current=$$(git tag --sort=-v:refname --list 'v*' | head -n1 || echo "none"); \
 	read -p "Current version: $$current. Enter new version: " version; \
 	if [ -z "$$version" ]; then echo "error: version required"; exit 1; fi; \
-	branch=$$(git branch --show-current); \
+	bump_branch="bump-library-to-$$version"; \
 	git tag "$$version" && \
 	git push origin "$$version" && \
+	git checkout -b "$$bump_branch" && \
 	(cd cmd/gomodguard && GOWORK=off go get "github.com/ryancurrah/gomodguard/v2@$$version" && GOWORK=off go mod tidy) && \
 	git add cmd/gomodguard/go.mod cmd/gomodguard/go.sum && \
 	git commit -m "chore: bump library to $$version" && \
 	git tag "cmd/gomodguard/$$version" && \
-	git push origin "$$branch" "cmd/gomodguard/$$version"
+	git push -u origin "$$bump_branch" "cmd/gomodguard/$$version" && \
+	gh pr create --title "chore: bump library to $$version" --body "Required by cmd/gomodguard/$$version release." && \
+	echo "waiting for PR to merge..." && \
+	while :; do \
+		state=$$(gh pr view --json state -q .state); \
+		if [ "$$state" = "MERGED" ]; then break; fi; \
+		if [ "$$state" = "CLOSED" ]; then echo "error: PR closed without merge"; exit 1; fi; \
+		sleep 30; \
+	done && \
+	git checkout main && git pull --ff-only origin main && \
+	git branch -D "$$bump_branch"
 
 .PHONY: install-mac-tools
 install-tools-mac:
