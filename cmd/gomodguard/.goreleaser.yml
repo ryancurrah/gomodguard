@@ -13,25 +13,28 @@ archives:
     wrap_in_directory: true
     format_overrides:
       - goos: windows
-        format: zip
+        formats: ["zip"]
       - goos: darwin
-        format: tar.xz
+        formats: ["tar.xz"]
       - goos: linux
-        format: tar.xz
+        formats: ["tar.xz"]
 checksum:
   name_template: "checksums.txt"
-dockers:
-  - goos: linux
-    goarch: amd64
-    image_templates:
-      - "ryancurrah/gomodguard:latest"
-      - "ryancurrah/gomodguard:{{.Tag}}"
-    skip_push: false
-    dockerfile: Dockerfile
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
+dockers_v2:
+  - dockerfile: Dockerfile
+    images:
+      - ryancurrah/gomodguard
+    tags:
+      - "latest"
+      - "v{{ replace .Version \"cmd/gomodguard/v\" \"\" }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    flags:
+      - --pull
+    labels:
+      "org.opencontainers.image.created": "{{ .Date }}"
+      "org.opencontainers.image.name": "{{ .ProjectName }}"
+      "org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.source": "{{ .GitURL }}"
