@@ -28,3 +28,8 @@ linters:
       rules:
         - name: package-comments
           disabled: true
+  exclusions:
+    rules:
+      - path: _test\.go$
+        linters:
+          - goconst
