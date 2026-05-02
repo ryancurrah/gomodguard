@@ -26,6 +26,10 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Strip tag prefix for goreleaser
+        id: version
+        run: echo "current=${GITHUB_REF_NAME#cmd/gomodguard/}" >> "$GITHUB_OUTPUT"
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -34,3 +38,4 @@ jobs:
           workdir: cmd/gomodguard
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.version.outputs.current }}
