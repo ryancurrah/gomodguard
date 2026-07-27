@@ -24,9 +24,15 @@ const (
 	errParsingGoModFile = "unable to parse module file %s: %w"
 )
 
+// packageNamePlaceholder is substituted with the imported package path when an
+// issue is reported. Using a sentinel (rather than a fmt verb) keeps user-supplied
+// content — Reason text, recommendation names, error messages — safe to embed
+// verbatim, even when it contains `%` characters.
+const packageNamePlaceholder = "{{packageName}}"
+
 var (
-	blockReasonInBlockedList            = "import of package `%s` is blocked because the module is in the blocked modules list."
-	blockReasonHasLocalReplaceDirective = "import of package `%s` is blocked because the module has a local replace directive."
+	blockReasonInBlockedList            = "import of package `" + packageNamePlaceholder + "` is blocked because the module is in the blocked modules list."
+	blockReasonHasLocalReplaceDirective = "import of package `" + packageNamePlaceholder + "` is blocked because the module has a local replace directive."
 
 	// startsWithVersion is used to test when a string begins with the version identifier of a module,
 	// after having stripped the prefix base module name. IE "github.com/foo/bar/v2/baz" => "v2/baz"
@@ -285,7 +291,7 @@ func (p *Processor) SetBlockedModules() { //nolint:gocognit // Ack this is a lon
 				// NOTE: Unreachable via real go.mod files; modfile.Parse rejects invalid versions
 				// earlier. Left untested by design as this branch cannot be triggered.
 				blockedModules[requiredModuleName] = append(blockedModules[requiredModuleName],
-					fmt.Sprintf("import of package `%%s` is blocked because the module version `%s` could not be parsed: %s",
+					fmt.Sprintf("import of package `"+packageNamePlaceholder+"` is blocked because the module version `%s` could not be parsed: %s",
 						requiredModuleVersion, err,
 					),
 				)
@@ -300,7 +306,7 @@ func (p *Processor) SetBlockedModules() { //nolint:gocognit // Ack this is a lon
 
 		if !isAllowed {
 			blockedModules[requiredModuleName] = append(blockedModules[requiredModuleName],
-				fmt.Sprintf("import of package `%%s` is blocked because %s", matchedButWrongVersion.NotAllowedReason(requiredModuleVersion)))
+				"import of package `"+packageNamePlaceholder+"` is blocked because "+matchedButWrongVersion.NotAllowedReason(requiredModuleVersion))
 		}
 	}
 
@@ -397,7 +403,7 @@ func (p *Processor) isBlockedPackageFromModFile(packageName string) []string {
 			formattedReasons := make([]string, 0, len(blockReasons))
 
 			for _, blockReason := range blockReasons {
-				formattedReasons = append(formattedReasons, fmt.Sprintf(blockReason, packageName))
+				formattedReasons = append(formattedReasons, strings.ReplaceAll(blockReason, packageNamePlaceholder, packageName))
 			}
 
 			return formattedReasons

@@ -239,6 +239,27 @@ func TestProcessorProcessFiles(t *testing.T) { //nolint:funlen
 			},
 			wantEmpty: true,
 		},
+		"reason and recommendation containing percent characters are preserved verbatim": {
+			exampleDir: "examples/alloptions",
+			config: &gomodguard.Configuration{
+				Blocked: gomodguard.Blocked{
+					{
+						Module:          "github.com/uudashr/go-module",
+						MatchType:       gomodguard.ExactMatch,
+						Recommendations: []string{"golang.org/x/mod"},
+						Reason:          "see https://example.com/foo?x=100% and use %s instead",
+					},
+				},
+			},
+			wantReasons: []string{
+				"blocked_example.go:8:1 import of package `github.com/uudashr/go-module` is blocked because the " +
+					"module is in the blocked modules list. `golang.org/x/mod` is a recommended module. " +
+					"see https://example.com/foo?x=100% and use %s instead.",
+			},
+			notWantReasons: []string{
+				"%!", // fmt.Sprintf failure markers like %!s(MISSING) or %!.(MISSING)
+			},
+		},
 		"precedence - longest prefix wins over shorter prefix": {
 			exampleDir: "examples/alloptions",
 			config: &gomodguard.Configuration{
