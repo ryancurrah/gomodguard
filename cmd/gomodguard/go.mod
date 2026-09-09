@@ -1,6 +1,6 @@
 module github.com/ryancurrah/gomodguard/cmd/gomodguard/v2
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
@@ -13,7 +13,7 @@ require (
 
 require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/mod v0.40.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
 )
 
 retract (
